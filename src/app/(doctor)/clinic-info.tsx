@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { MockDB } from '@/utils/storage';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +24,19 @@ export default function ClinicInfoScreen() {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [fee, setFee] = useState('');
   const [payAtReception, setPayAtReception] = useState(false);
+
+  useEffect(() => {
+    async function loadDraft() {
+      const draft = await MockDB.getRegistrationDraft();
+      if (draft) {
+        if (draft.clinicName) setClinicName(draft.clinicName);
+        if (draft.address) setAddress(draft.address);
+        if (draft.phone) setContactNumber(draft.phone);
+        if (draft.consultationFee) setFee(draft.consultationFee.replace('₹', ''));
+      }
+    }
+    loadDraft();
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -223,7 +237,18 @@ export default function ClinicInfoScreen() {
             </View>
 
             {/* Continue Button */}
-            <Pressable style={styles.button} onPress={() => router.push('/setup')}>
+            <Pressable
+              style={styles.button}
+              onPress={async () => {
+                await MockDB.saveRegistrationDraft({
+                  clinicName: clinicName.trim() || 'Wellness Clinic',
+                  address: address.trim() || 'Main Street, Healthcare Zone',
+                  consultationFee: fee ? `₹${fee}` : '₹500',
+                  city: address.split(',').pop()?.trim() || 'Bangalore',
+                });
+                router.push('/setup');
+              }}
+            >
               <Text style={styles.buttonText}>Continue</Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
             </Pressable>

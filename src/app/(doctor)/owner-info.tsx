@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { MockDB } from '@/utils/storage';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -21,6 +22,11 @@ export default function OwnerInfoScreen() {
   const [emailAddress, setEmailAddress] = useState('');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [panNumber, setPanNumber] = useState('');
+
+  useEffect(() => {
+    // Clinic/Hospital flow has been retired in favor of Doctor onboarding
+    router.replace('/doctor-info');
+  }, [router]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -211,7 +217,20 @@ export default function OwnerInfoScreen() {
             </View>
 
             {/* Continue Button */}
-            <Pressable style={styles.button} onPress={() => router.push('/hospital-info')}>
+            <Pressable
+              style={styles.button}
+              onPress={async () => {
+                await MockDB.saveRegistrationDraft({
+                  ownerName: fullName.trim() || 'Clinic Administrator',
+                  name: fullName.trim() || 'Clinic Administrator',
+                  ownerPhone: mobileNumber.trim() || '9876500002',
+                  phone: mobileNumber.trim() || '9876500002',
+                  email: emailAddress.trim(),
+                  type: 'CLINIC',
+                });
+                router.push('/hospital-info');
+              }}
+            >
               <Text style={styles.buttonText}>Continue</Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
             </Pressable>

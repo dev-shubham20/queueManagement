@@ -1,5 +1,6 @@
 import { SmartClinicLogo } from '@/components/ui/logo';
-import { Storage } from '@/utils/storage';
+import { Storage, MockDB } from '@/utils/storage';
+import { RemoteAPI } from '@/utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -37,9 +38,20 @@ export default function LoginScreen() {
     setError('');
 
     try {
+      const checkRes = await RemoteAPI.checkUser(value);
+      let exists = checkRes.exists;
+      if (!exists && !checkRes.mismatch) {
+        const local = await MockDB.getUserByPhone(value);
+        if (local) exists = true;
+      }
+      if (!exists) {
+        setError(`No account found for +91 ${value}. Please register an account first.`);
+        return;
+      }
+
       await Storage.setItem('hasOnboarded', 'true');
       router.replace(`/otp?phone=${encodeURIComponent(value)}`);
-    } catch (e) {
+    } catch {
       setError('Unable to send OTP. Please try again.');
     } finally {
       setLoading(false);

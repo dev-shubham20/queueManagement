@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform, ScrollView, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -86,15 +86,32 @@ const LogOutIcon = () => (
   </Svg>
 );
 
+import { MockDB, UserData } from '@/utils/storage';
+import { useFocusEffect } from 'expo-router';
+
 export default function ProfileScreen() {
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<UserData | null>(null);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadUser = async () => {
+        const session = await MockDB.getCurrentSession();
+        setCurrentUser(session);
+      };
+      loadUser();
+    }, [])
+  );
 
   const handleLogout = async () => {
-    await Storage.removeItem('isLoggedIn');
-    await Storage.removeItem('hasOnboarded');
-    await Storage.removeItem('hasActiveToken');
+    await MockDB.clearSession();
+    await MockDB.clearActiveToken();
     router.replace('/');
   };
+
+  const displayName = currentUser?.name || 'Patient';
+  const displayPhone = currentUser?.phone ? `+91 ${currentUser.phone}` : 'No phone linked';
+  const displayEmail = currentUser?.email || (currentUser?.name ? `${currentUser.name.toLowerCase().replace(/\s+/g, '.')}@carequeue.in` : 'patient@carequeue.in');
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
@@ -111,11 +128,11 @@ export default function ProfileScreen() {
               <PencilIcon />
             </View>
           </View>
-          <Text style={styles.name}>Michael Stevens</Text>
+          <Text style={styles.name}>{displayName}</Text>
           <View style={styles.patientIdContainer}>
-            <Text style={styles.patientId}>Patient ID: #8821</Text>
+            <Text style={styles.patientId}>Patient ID: #{currentUser?.phone ? currentUser.phone.slice(-4) : '8821'}</Text>
             <View style={styles.primaryBadge}>
-              <Text style={styles.primaryBadgeText}>PRIMARY ACCOUNT</Text>
+              <Text style={styles.primaryBadgeText}>VERIFIED PATIENT</Text>
             </View>
           </View>
         </View>
@@ -127,19 +144,19 @@ export default function ProfileScreen() {
               <UserIcon color="#0052FF" />
               <Text style={styles.cardTitleBlue}>Personal Info</Text>
             </View>
-            <Text style={styles.editLink}>Edit</Text>
+            <Text style={styles.editLink}>Verified</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>FULL NAME</Text>
-            <Text style={styles.infoValue}>Michael Stevens</Text>
+            <Text style={styles.infoValue}>{displayName}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>PHONE</Text>
-            <Text style={styles.infoValue}>+1 (555) 902-1144</Text>
+            <Text style={styles.infoValue}>{displayPhone}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>EMAIL</Text>
-            <Text style={styles.infoValue}>m.stevens@healthcare.me</Text>
+            <Text style={styles.infoValue}>{displayEmail}</Text>
           </View>
         </View>
 

@@ -30,134 +30,52 @@ const EmptyStateIcon = () => (
   </Svg>
 );
 
+import { ActiveTokenData, MockDB, PatientRecord } from '@/utils/storage';
+import { useFocusEffect } from 'expo-router';
+
 type TabType = 'Upcoming' | 'Completed' | 'Cancelled';
 
 export default function BookScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('Upcoming');
+  const [activeToken, setActiveToken] = useState<ActiveTokenData | null>(null);
+  const [completedList, setCompletedList] = useState<PatientRecord[]>([]);
+  const [cancelling, setCancelling] = useState(false);
 
-  const renderUpcoming = () => (
-    <>
-      <View style={styles.bookingCard}> 
-        <View style={styles.bookingTagRow}>
-          <View style={styles.tagWrapper}>
-            <ThemedText style={styles.bookingTag}>GENERAL CONSULTATION</ThemedText>
-          </View>
-          <View style={styles.badgePillLive}>
-            <View style={styles.liveDot} />
-            <ThemedText style={styles.badgeTextLive}>Live</ThemedText>
-          </View>
-        </View>
+  const loadData = async () => {
+    try {
+      const token = await MockDB.getActiveToken();
+      setActiveToken(token);
 
-        <View style={styles.doctorRow}>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=200&q=80' }}
-            style={styles.doctorAvatar}
-            contentFit="cover"
-          />
-          <View style={styles.doctorInfo}>
-            <ThemedText style={styles.doctorLabel}>Dr. Sarah Mitchell</ThemedText>
-            <View style={styles.metaRow}>
-              <CalendarIcon />
-              <ThemedText style={styles.bookingMeta}>Today • 10:30 AM</ThemedText>
-            </View>
-          </View>
-        </View>
+      const allPatients = await MockDB.getPatients();
+      setCompletedList(allPatients.filter(p => p.treatmentStatus === 'COMPLETED'));
+    } catch (e) {
+      console.error('Error loading bookings', e);
+    }
+  };
 
-        <View style={styles.tokenRow}>
-          <View style={styles.tokenBox}>
-            <ThemedText style={styles.tokenLabel}>Queue Token</ThemedText>
-            <ThemedText style={styles.tokenValue}>#A24</ThemedText>
-          </View>
-          <View style={styles.waitBox}>
-            <ThemedText style={styles.waitLabel}>Estimated Wait</ThemedText>
-            <ThemedText style={styles.waitValue}>~12 mins</ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.actionRow}>
-          <Pressable style={styles.primaryButton} onPress={() => router.push('/queue')}>
-            <ThemedText style={styles.primaryButtonText}>Track Live</ThemedText>
-          </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={() => router.push('/booking-details')}>
-            <ThemedText style={styles.secondaryButtonText}>Details</ThemedText>
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.bookingCard}> 
-        <View style={styles.bookingTagRow}>
-          <View style={styles.tagWrapper}>
-            <ThemedText style={styles.bookingTag}>DERMATOLOGY</ThemedText>
-          </View>
-          <View style={styles.badgePillStandard}>
-            <ThemedText style={styles.badgeTextStandard}>Upcoming</ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.doctorRow}>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1550831107-1553da8c8464?auto=format&fit=crop&w=200&q=80' }}
-            style={styles.doctorAvatar}
-            contentFit="cover"
-          />
-          <View style={styles.doctorInfo}>
-            <ThemedText style={styles.doctorLabel}>Dr. James Chen</ThemedText>
-            <View style={styles.metaRow}>
-              <CalendarIcon />
-              <ThemedText style={styles.bookingMeta}>Oct 27, 2023 • 02:15 PM</ThemedText>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.actionRow}>
-          <Pressable style={styles.secondaryButton} onPress={() => router.push('/booking-details')}>
-            <ThemedText style={styles.secondaryButtonText}>View Details</ThemedText>
-          </Pressable>
-          <Pressable style={styles.cancelButton}>
-            <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
-          </Pressable>
-        </View>
-      </View>
-    </>
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
   );
 
-  const renderCompleted = () => (
-    <View style={styles.bookingCard}> 
-      <View style={styles.bookingTagRow}>
-        <View style={styles.tagWrapper}>
-          <ThemedText style={styles.bookingTag}>CARDIOLOGY</ThemedText>
-        </View>
-        <View style={styles.badgePillCompleted}>
-          <ThemedText style={styles.badgeTextCompleted}>Completed</ThemedText>
-        </View>
-      </View>
-
-      <View style={styles.doctorRow}>
-        <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1594824436998-dd40e4f2084c?auto=format&fit=crop&w=200&q=80' }}
-          style={styles.doctorAvatar}
-          contentFit="cover"
-        />
-        <View style={styles.doctorInfo}>
-          <ThemedText style={styles.doctorLabel}>Dr. Emily Wong</ThemedText>
-          <View style={styles.metaRow}>
-            <CalendarIcon />
-            <ThemedText style={styles.bookingMeta}>Sep 14, 2023 • 11:00 AM</ThemedText>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.actionRow}>
-        <Pressable style={styles.primaryButtonOutline}>
-          <ThemedText style={styles.primaryButtonOutlineText}>Book Again</ThemedText>
-        </Pressable>
-        <Pressable style={styles.secondaryButton}>
-          <ThemedText style={styles.secondaryButtonText}>E-Receipt</ThemedText>
-        </Pressable>
-      </View>
-    </View>
-  );
+  const handleCancelBooking = async () => {
+    if (cancelling) return;
+    setCancelling(true);
+    try {
+      if (activeToken?.id) {
+        await MockDB.cancelActiveToken(activeToken.id);
+      } else {
+        await MockDB.clearActiveToken();
+      }
+      setActiveToken(null);
+    } catch (e) {
+      console.error('Error cancelling booking', e);
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const renderEmptyState = (message: string) => (
     <View style={styles.emptyState}>
@@ -165,8 +83,132 @@ export default function BookScreen() {
         <EmptyStateIcon />
       </View>
       <ThemedText style={styles.emptyTitle}>{message}</ThemedText>
+      <Pressable 
+        style={[styles.primaryButton, { marginTop: 16, paddingHorizontal: 20 }]} 
+        onPress={() => router.push('/explore' as any)}
+      >
+        <ThemedText style={styles.primaryButtonText}>Find Doctor & Book</ThemedText>
+      </Pressable>
     </View>
   );
+
+  const renderUpcoming = () => {
+    if (!activeToken) {
+      return renderEmptyState('You have no active appointments right now');
+    }
+
+    return (
+      <View style={styles.bookingCard}> 
+        <View style={styles.bookingTagRow}>
+          <View style={styles.tagWrapper}>
+            <ThemedText style={styles.bookingTag}>
+              {activeToken.specialty ? activeToken.specialty.toUpperCase() : 'GENERAL CONSULTATION'}
+            </ThemedText>
+          </View>
+          <View style={styles.badgePillLive}>
+            <View style={styles.liveDot} />
+            <ThemedText style={styles.badgeTextLive}>Live Queue</ThemedText>
+          </View>
+        </View>
+
+        <View style={styles.doctorRow}>
+          <Image
+            source={{ uri: activeToken.image || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=200&q=80' }}
+            style={styles.doctorAvatar}
+            contentFit="cover"
+          />
+          <View style={styles.doctorInfo}>
+            <ThemedText style={styles.doctorLabel}>{activeToken.doctorName}</ThemedText>
+            <View style={styles.metaRow}>
+              <CalendarIcon />
+              <ThemedText style={styles.bookingMeta}>
+                {activeToken.appointmentDate || 'Today'} • {activeToken.session === 'evening' ? 'Evening' : 'Morning'}
+              </ThemedText>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.tokenRow}>
+          <View style={styles.tokenBox}>
+            <ThemedText style={styles.tokenLabel}>Queue Token</ThemedText>
+            <ThemedText style={styles.tokenValue}>#{activeToken.token}</ThemedText>
+          </View>
+          <View style={styles.waitBox}>
+            <ThemedText style={styles.waitLabel}>Estimated Wait</ThemedText>
+            <ThemedText style={styles.waitValue}>~{Math.max(5, (activeToken.positionAhead || 1) * 5)} mins</ThemedText>
+          </View>
+        </View>
+
+        <View style={styles.actionRow}>
+          <Pressable style={styles.primaryButton} onPress={() => router.push('/(patient)/(tabs)/queue')}>
+            <ThemedText style={styles.primaryButtonText}>Track Live</ThemedText>
+          </Pressable>
+          <Pressable 
+            style={[styles.cancelButton, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FCA5A5' }]} 
+            onPress={handleCancelBooking}
+          >
+            <ThemedText style={[styles.cancelButtonText, { color: '#DC2626' }]}>
+              {cancelling ? 'Cancelling...' : 'Cancel Token'}
+            </ThemedText>
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
+  const renderCompleted = () => {
+    if (completedList.length === 0) {
+      return renderEmptyState('You have no completed consultations yet');
+    }
+
+    return (
+      <>
+        {completedList.map((item) => (
+          <View key={item.id} style={styles.bookingCard}> 
+            <View style={styles.bookingTagRow}>
+              <View style={styles.tagWrapper}>
+                <ThemedText style={styles.bookingTag}>
+                  {item.condition || 'GENERAL CONSULTATION'}
+                </ThemedText>
+              </View>
+              <View style={styles.badgePillCompleted}>
+                <ThemedText style={styles.badgeTextCompleted}>Completed</ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.doctorRow}>
+              <Image
+                source={{ uri: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=200&q=80' }}
+                style={styles.doctorAvatar}
+                contentFit="cover"
+              />
+              <View style={styles.doctorInfo}>
+                <ThemedText style={styles.doctorLabel}>{item.assignedDoctorName || 'Practitioner'}</ThemedText>
+                <View style={styles.metaRow}>
+                  <CalendarIcon />
+                  <ThemedText style={styles.bookingMeta}>
+                    {item.lastVisitDate ? `Visit: ${item.lastVisitDate}` : 'Past Visit'}
+                  </ThemedText>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.actionRow}>
+              <Pressable 
+                style={styles.primaryButtonOutline}
+                onPress={() => router.push('/explore' as any)}
+              >
+                <ThemedText style={styles.primaryButtonOutlineText}>Book Again</ThemedText>
+              </Pressable>
+              <View style={styles.secondaryButton}>
+                <ThemedText style={styles.secondaryButtonText}>Token #{item.tokenNumber || '--'}</ThemedText>
+              </View>
+            </View>
+          </View>
+        ))}
+      </>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patients Directory • CareQueue Super Admin</title>
+  <link rel="stylesheet" href="css/admin.css">
+  <script src="js/auth.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">🛡️</div>
+        <div>
+          <div class="brand-title">CareQueue</div>
+          <div class="brand-badge">★ OWNER CONSOLE</div>
+        </div>
+      </div>
+
+      <div class="nav-section-title">Navigation</div>
+      <ul class="nav-list">
+        <li class="nav-item">
+          <a href="index.html">
+            <span class="nav-icon">📊</span>
+            <span>Executive Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="doctors.html">
+            <span class="nav-icon">🩺</span>
+            <span>Doctors</span>
+            <span class="nav-badge" id="sidebar-doc-count">...</span>
+          </a>
+        </li>
+        <li class="nav-item active">
+          <a href="patients.html">
+            <span class="nav-icon">👥</span>
+            <span>Patients Directory</span>
+            <span class="nav-badge" id="sidebar-pat-count">...</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="sync-status">
+          <div class="sync-dot"></div>
+          <span>LIVE SYNC ACTIVE</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+      <!-- Top Navbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Patients Directory & Live Queue</h1>
+          <p class="page-subtitle">Track registered patients, ongoing consultations, and appointment queues across practices</p>
+        </div>
+
+        <div class="topbar-right">
+          <div class="owner-profile">
+            <div class="owner-avatar">👑</div>
+            <div class="owner-meta">
+              <span class="owner-name">Platform Owner</span>
+              <span class="owner-role">SUPER ADMIN</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Body Content -->
+      <div class="page-body">
+        <!-- Summary Stats Grid -->
+        <div class="stats-grid" style="margin-bottom: 20px;">
+          <div class="stat-card" style="padding: 16px;">
+            <div class="stat-value" id="pat-stat-total" style="font-size: 26px; color: #0284C7;">0</div>
+            <div class="stat-label">Total Registered Patients</div>
+          </div>
+          <div class="stat-card" style="padding: 16px;">
+            <div class="stat-value" id="pat-stat-consultation" style="font-size: 26px; color: #D97706;">0</div>
+            <div class="stat-label">Currently In Consultation</div>
+          </div>
+          <div class="stat-card" style="padding: 16px;">
+            <div class="stat-value" id="pat-stat-queue" style="font-size: 26px; color: #2563EB;">0</div>
+            <div class="stat-label">Waiting In Queue</div>
+          </div>
+          <div class="stat-card" style="padding: 16px;">
+            <div class="stat-value" id="pat-stat-completed" style="font-size: 26px; color: #059669;">0</div>
+            <div class="stat-label">Visits Completed</div>
+          </div>
+        </div>
+
+        <!-- Filter & Search Controls Bar -->
+        <div class="filter-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="patient-search"
+              class="search-input"
+              placeholder="Search by patient name, phone, token, doctor, condition..."
+            />
+          </div>
+
+          <div class="filter-chips">
+            <button class="filter-chip active" data-filter="ALL">
+              All Patients <span class="filter-badge" id="badge-all">0</span>
+            </button>
+            <button class="filter-chip" data-filter="IN_CONSULTATION">
+              In Consultation <span class="filter-badge" id="badge-consultation">0</span>
+            </button>
+            <button class="filter-chip" data-filter="WAITING">
+              In Queue <span class="filter-badge" id="badge-waiting">0</span>
+            </button>
+            <button class="filter-chip" data-filter="COMPLETED">
+              Completed <span class="filter-badge" id="badge-completed">0</span>
+            </button>
+            <button class="filter-chip" data-filter="REGISTERED">
+              Registered Only <span class="filter-badge" id="badge-registered">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Patients Table -->
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Patient Details</th>
+                <th>Token #</th>
+                <th>Condition / Visit Reason</th>
+                <th>Assigned Doctor & Practice</th>
+                <th>Total Visits</th>
+                <th>Current Status</th>
+                <th>Queue Action</th>
+              </tr>
+            </thead>
+            <tbody id="patients-tbody">
+              <!-- Dynamically populated -->
+              <tr>
+                <td colspan="7" style="text-align: center; padding: 32px; color: var(--text-muted);">
+                  Loading registered patients...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/api.js"></script>
+  <script src="js/patients.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import DashboardHeader from '../../components/DashboardHeader';
 import {
   SafeAreaView,
@@ -10,11 +10,41 @@ import {
   View,
   Pressable,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import BottomTabBar from '../../components/BottomTabBar';
 
 export default function StaffManagementScreen() {
   const router = useRouter();
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadStaff = async () => {
+    setLoading(true);
+    try {
+      const { RemoteAPI } = await import('@/utils/api');
+      const { MockDB } = await import('@/utils/storage');
+      let recs: any[] = [];
+      try {
+        recs = await RemoteAPI.getReceptionists();
+      } catch {}
+      if (!recs || recs.length === 0) {
+        const users = await MockDB.getUsers();
+        recs = users.filter(u => u.role === 'RECEPTIONIST' || u.role === 'STAFF');
+      }
+      setStaffList(recs || []);
+    } catch (e) {
+      console.error('Error loading staff:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadStaff();
+    }, [])
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -32,114 +62,69 @@ export default function StaffManagementScreen() {
           </Pressable>
         </View>
 
-        {/* Staff List */}
-        
-        {/* Staff Card 1 */}
-        <View style={styles.staffCard}>
-          <View style={styles.cardBorderLeft} />
-          <View style={styles.cardHeaderRow}>
-            <View style={styles.avatarBox}>
-              <Ionicons name="person" size={24} color="#9CA3AF" />
+        {/* Dynamic Staff List */}
+        {loading ? (
+          <View style={{ padding: 32, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#2563EB" />
+          </View>
+        ) : staffList.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="people-outline" size={36} color="#94A3B8" />
             </View>
-            <View style={styles.staffInfoContainer}>
-              <Text style={styles.staffName}>Elena Rodriguez</Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>RECEPTIONIST</Text>
+            <Text style={styles.emptyTitle}>No Staff Members Added Yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Authorize receptionists or assistant staff to help manage queues and walk-in patient registrations.
+            </Text>
+          </View>
+        ) : (
+          staffList.map((staff, idx) => (
+            <View key={staff.id || staff.phone || idx} style={styles.staffCard}>
+              <View style={styles.cardBorderLeft} />
+              <View style={styles.cardHeaderRow}>
+                <View style={styles.avatarBox}>
+                  <Ionicons name="person" size={24} color="#9CA3AF" />
+                </View>
+                <View style={styles.staffInfoContainer}>
+                  <Text style={styles.staffName}>{staff.name || 'Staff Member'}</Text>
+                  <View style={styles.roleBadge}>
+                    <Text style={styles.roleText}>{staff.role || 'RECEPTIONIST'}</Text>
+                  </View>
+                </View>
+                <View style={styles.statusBadge}>
+                  <View style={[styles.statusDot, staff.status === 'SUSPENDED' && { backgroundColor: '#EF4444' }]} />
+                  <Text style={[styles.statusText, staff.status === 'SUSPENDED' && { color: '#EF4444' }]}>
+                    {staff.status || 'ACTIVE'}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>ACTIVE</Text>
-            </View>
-          </View>
-          
-          <View style={styles.staffDetails}>
-            <View style={styles.detailRow}>
-              <Ionicons name="mail-outline" size={14} color="#4B5563" style={styles.detailIcon} />
-              <Text style={styles.detailText}>elena.r@cityhealth.com</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={14} color="#4B5563" style={styles.detailIcon} />
-              <Text style={styles.detailText}>Mon - Fri, 08:00 - 16:00</Text>
-            </View>
-          </View>
-
-          <Pressable style={styles.editButton} onPress={() => router.push('/staff-permissions')}>
-            <Ionicons name="lock-closed-outline" size={16} color="#2563EB" />
-            <Text style={styles.editButtonText}>Edit Permissions</Text>
-          </Pressable>
-        </View>
-
-        {/* Staff Card 2 */}
-        <View style={styles.staffCard}>
-          <View style={styles.cardBorderLeft} />
-          <View style={styles.cardHeaderRow}>
-            <View style={styles.avatarBox}>
-              <Ionicons name="person" size={24} color="#9CA3AF" />
-            </View>
-            <View style={styles.staffInfoContainer}>
-              <Text style={styles.staffName}>Marcus Chen</Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>ASSISTANT</Text>
+              
+              <View style={styles.staffDetails}>
+                <View style={styles.detailRow}>
+                  <Ionicons name="call-outline" size={14} color="#4B5563" style={styles.detailIcon} />
+                  <Text style={styles.detailText}>+91 {staff.phone || '--'}</Text>
+                </View>
+                {staff.email ? (
+                  <View style={styles.detailRow}>
+                    <Ionicons name="mail-outline" size={14} color="#4B5563" style={styles.detailIcon} />
+                    <Text style={styles.detailText}>{staff.email}</Text>
+                  </View>
+                ) : null}
               </View>
-            </View>
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>ACTIVE</Text>
-            </View>
-          </View>
-          
-          <View style={styles.staffDetails}>
-            <View style={styles.detailRow}>
-              <Ionicons name="mail-outline" size={14} color="#4B5563" style={styles.detailIcon} />
-              <Text style={styles.detailText}>m.chen@cityhealth.com</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={14} color="#4B5563" style={styles.detailIcon} />
-              <Text style={styles.detailText}>Tue - Sat, 09:00 - 17:00</Text>
-            </View>
-          </View>
-          <Pressable style={styles.editButton} onPress={() => router.push('/staff-permissions')}>
-            <Ionicons name="lock-closed-outline" size={16} color="#2563EB" />
-            <Text style={styles.editButtonText}>Edit Permissions</Text>
-          </Pressable>
-        </View>
 
-        {/* Staff Card 3 */}
-        <View style={styles.staffCard}>
-          <View style={styles.cardBorderLeft} />
-          <View style={styles.cardHeaderRow}>
-            <View style={styles.avatarBox}>
-              <Ionicons name="person" size={24} color="#9CA3AF" />
+              <Pressable
+                style={styles.editButton}
+                onPress={() => router.push({
+                  pathname: '/staff-permissions',
+                  params: { id: staff.id, name: staff.name, role: staff.role || 'RECEPTIONIST' }
+                })}
+              >
+                <Ionicons name="lock-closed-outline" size={16} color="#2563EB" />
+                <Text style={styles.editButtonText}>Edit Permissions</Text>
+              </Pressable>
             </View>
-            <View style={styles.staffInfoContainer}>
-              <Text style={styles.staffName}>Sarah Jenkins</Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>RECEPTIONIST</Text>
-              </View>
-            </View>
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>ACTIVE</Text>
-            </View>
-          </View>
-          
-          <View style={styles.staffDetails}>
-            <View style={styles.detailRow}>
-              <Ionicons name="mail-outline" size={14} color="#4B5563" style={styles.detailIcon} />
-              <Text style={styles.detailText}>s.jenkins@cityhealth.com</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={14} color="#4B5563" style={styles.detailIcon} />
-              <Text style={styles.detailText}>Mon - Thu, 10:00 - 18:00</Text>
-            </View>
-          </View>
-
-          <Pressable style={styles.editButton} onPress={() => router.push('/staff-permissions')}>
-            <Ionicons name="lock-closed-outline" size={16} color="#2563EB" />
-            <Text style={styles.editButtonText}>Edit Permissions</Text>
-          </Pressable>
-        </View>
+          ))
+        )}
 
         {/* Summary Stats Cards */}
         <View style={styles.statsContainer}>
@@ -150,11 +135,11 @@ export default function StaffManagementScreen() {
             </View>
             <View style={styles.statTextContent}>
               <Text style={styles.statLabel}>TOTAL STAFF</Text>
-              <Text style={styles.statValue}>24</Text>
+              <Text style={styles.statValue}>{staffList.length}</Text>
             </View>
           </View>
 
-          {/* On Duty Now */}
+          {/* Active Staff */}
           <View style={[styles.statCard, { backgroundColor: '#E6F4EA' }]}>
             <View style={[styles.statIconBox, { backgroundColor: '#FFFFFF' }]}>
               <Ionicons name="person-outline" size={20} color="#16A34A" />
@@ -163,19 +148,8 @@ export default function StaffManagementScreen() {
               </View>
             </View>
             <View style={styles.statTextContent}>
-              <Text style={[styles.statLabel, { color: '#166534' }]}>ON DUTY NOW</Text>
-              <Text style={styles.statValue}>8</Text>
-            </View>
-          </View>
-
-          {/* Admin Users */}
-          <View style={[styles.statCard, { backgroundColor: '#EFF6FF', marginBottom: 0 }]}>
-            <View style={[styles.statIconBox, { backgroundColor: '#FFFFFF' }]}>
-              <Ionicons name="shield-checkmark-outline" size={20} color="#2563EB" />
-            </View>
-            <View style={styles.statTextContent}>
-              <Text style={[styles.statLabel, { color: '#4F46E5' }]}>ADMIN USERS</Text>
-              <Text style={styles.statValue}>3</Text>
+              <Text style={[styles.statLabel, { color: '#166534' }]}>ACTIVE STAFF</Text>
+              <Text style={styles.statValue}>{staffList.filter(s => s.status !== 'SUSPENDED').length}</Text>
             </View>
           </View>
         </View>
@@ -453,5 +427,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2563EB',
     marginTop: 4,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 20,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

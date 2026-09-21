@@ -36,13 +36,10 @@ export default function DoctorsInfoScreen() {
   const [morningOffs, setMorningOffs] = useState<number[]>([0]);
   const [eveningOffs, setEveningOffs] = useState<number[]>([0]);
 
-  const toggleOff = (dayId: number, session: 'morning' | 'evening') => {
-    if (session === 'morning') {
-      setMorningOffs(prev => prev.includes(dayId) ? prev.filter(d => d !== dayId) : [...prev, dayId]);
-    } else {
-      setEveningOffs(prev => prev.includes(dayId) ? prev.filter(d => d !== dayId) : [...prev, dayId]);
-    }
-  };
+  useEffect(() => {
+    // Clinic/Hospital flow has been retired in favor of Doctor onboarding
+    router.replace('/doctor-info');
+  }, [router]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -437,7 +434,18 @@ export default function DoctorsInfoScreen() {
             </View>
 
             {/* Continue Button */}
-            <Pressable style={styles.button} onPress={() => router.push('/clinic-setup')}>
+            <Pressable
+              style={styles.button}
+              onPress={async () => {
+                const { MockDB } = await import('@/utils/storage');
+                await MockDB.saveRegistrationDraft({
+                  experience: '8+ Years Combined Experience',
+                  consultationFee: '₹500',
+                  type: 'CLINIC',
+                });
+                router.push('/clinic-setup');
+              }}
+            >
               <Text style={styles.buttonText}>Continue</Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
             </Pressable>

@@ -292,7 +292,63 @@ export default function SetupScreen() {
             </View>
 
             {/* Finish Button */}
-            <Pressable style={styles.button} onPress={() => router.push('/pending-verification')}>
+            <Pressable
+              style={styles.button}
+              onPress={async () => {
+                const { MockDB } = await import('@/utils/storage');
+                const { RemoteAPI } = await import('@/utils/api');
+                const session = await MockDB.getCurrentSession();
+                const draft = await MockDB.getRegistrationDraft();
+
+                const phone = draft?.phone || session?.phone || '9876500001';
+                const name = draft?.name || session?.name || 'Dr. Practitioner';
+
+                const fullPayload = {
+                  name,
+                  phone,
+                  email: draft?.email || '',
+                  type: 'INDIVIDUAL' as const,
+                  clinicName: draft?.clinicName || 'Private Practice Clinic',
+                  specialization: draft?.specialization || 'General Physician',
+                  experience: draft?.experience || '5 years',
+                  qualifications: draft?.qualifications || 'MBBS, MD',
+                  licenseNumber: draft?.licenseNumber || '',
+                  address: draft?.address || 'Main Road, Clinic Block',
+                  city: draft?.city || 'Bangalore',
+                  consultationFee: draft?.consultationFee || '₹500',
+                  workingHours: {
+                    morningSession,
+                    eveningSession,
+                    morningOffs,
+                    eveningOffs,
+                    allowWalkIn,
+                  },
+                  approvalStatus: 'PENDING' as const,
+                  status: 'DEACTIVATED' as const,
+                };
+
+                let savedDoc = null;
+                if (draft?.id) {
+                  savedDoc = await RemoteAPI.resubmitDoctor(draft.id, fullPayload);
+                  await MockDB.resubmitDoctor(draft.id, fullPayload);
+                } else {
+                  savedDoc = await RemoteAPI.registerDoctor(fullPayload);
+                  if (!savedDoc) {
+                    savedDoc = await MockDB.addDoctor(fullPayload);
+                  }
+                }
+
+                await MockDB.setActiveRegistration(savedDoc || fullPayload);
+                await MockDB.setCurrentSession({
+                  phone,
+                  name,
+                  role: 'DOCTOR',
+                  status: 'PENDING',
+                });
+
+                router.push('/pending-verification');
+              }}
+            >
               <Text style={styles.buttonText}>Finish Registration</Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
             </Pressable>

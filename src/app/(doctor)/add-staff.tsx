@@ -183,15 +183,27 @@ export default function AddStaffScreen() {
         {/* Submit Button */}
         <Pressable style={styles.submitButton} onPress={async () => {
           const { MockDB } = await import('@/utils/storage');
+          const { RemoteAPI } = await import('@/utils/api');
+          const cleanMobile = mobileNumber.replace(/\D/g, '');
           const permissions = [];
-          if (manageQueue) permissions.push('queue');
-          if (patientRecords) permissions.push('records');
+          if (manageQueue) permissions.push('queue', 'token:create', 'token:create_emergency', 'queue:pause', 'queue:resume');
+          if (patientRecords) permissions.push('records', 'patient:search', 'patient:create');
           if (billingAccess) permissions.push('billing');
           if (clinicSettings) permissions.push('settings');
           
+          try {
+            await RemoteAPI.authorizeReceptionist({
+              name: fullName,
+              phone: cleanMobile,
+              permissions,
+            });
+          } catch (e) {
+            console.warn('Fallback local receptionist save:', e);
+          }
+
           await MockDB.addUser({
-            phone: mobileNumber.replace(/\D/g, ''),
-            role: 'STAFF',
+            phone: cleanMobile,
+            role: 'RECEPTIONIST',
             status: 'APPROVED',
             name: fullName,
             permissions

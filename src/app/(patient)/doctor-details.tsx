@@ -28,15 +28,28 @@ export default function DoctorDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  const name = (params.name as string) || 'Dr. Elena Rodriguez';
-  const specialty = (params.specialty as string) || 'Pediatrician • City Health Center';
-  const image = (params.image as string) || 'https://images.unsplash.com/photo-1594824813573-246434de83fb?q=80&w=300';
-  const fee = (params.fee as string) || '$50';
+  const doctorId = (params.id as string) || (params.doctorId as string) || '';
+  const name = (params.name as string) || 'Practitioner';
+  const clinicName = (params.clinicName as string) || '';
+  const specialty = (params.specialty as string) || 'Specialist Consultation';
+  const image = (params.image as string) || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=300';
+  const fee = (params.fee as string) || '₹500';
+  const waitingQueueCount = params.waitingQueueCount ? Number(params.waitingQueueCount) : 0;
+  const rating = (params.rating as string) || '4.9';
+  const experience = (params.experience as string) || '10+ years';
 
   const handleBookAppointment = () => {
     router.push({
       pathname: '/confirm-booking',
-      params: { name, specialty, image, fee },
+      params: { 
+        doctorId, 
+        name, 
+        clinicName,
+        specialty, 
+        image, 
+        fee,
+        waitingQueueCount: String(waitingQueueCount),
+      },
     } as any);
   };
 
@@ -61,11 +74,17 @@ export default function DoctorDetailsScreen() {
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <StarIcon />
-              <Text style={styles.metaText}>4.9 (120 reviews)</Text>
+              <Text style={styles.metaText}>{rating} Rating</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.metaItem}>
-              <Text style={styles.metaText}>1.2 km away</Text>
+              <Text style={styles.metaText}>{experience}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.metaItem}>
+              <Text style={[styles.metaText, { color: waitingQueueCount > 0 ? '#0052FF' : '#16A34A', fontWeight: '700' }]}>
+                {waitingQueueCount > 0 ? `${waitingQueueCount} Waiting` : 'Queue Empty'}
+              </Text>
             </View>
           </View>
         </View>
@@ -74,9 +93,8 @@ export default function DoctorDetailsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About Doctor</Text>
           <Text style={styles.sectionBody}>
-            Experienced specialist dedicated to providing comprehensive and compassionate care. 
-            Dr. Rodriguez leverages state-of-the-art diagnostic tools to simplify treatments 
-            and improve patient outcomes.
+            {name} is an experienced practitioner dedicated to comprehensive and compassionate patient care. 
+            Offers digital queue management with live token tracking so patients experience minimal waiting room delays.
           </Text>
         </View>
 
@@ -90,17 +108,17 @@ export default function DoctorDetailsScreen() {
             </View>
             <View style={styles.detailTextWrapper}>
               <Text style={styles.detailLabel}>Working Hours</Text>
-              <Text style={styles.detailValue}>Mon - Fri, 09:00 AM - 05:00 PM</Text>
+              <Text style={styles.detailValue}>Mon - Sat, 09:00 AM - 07:00 PM</Text>
             </View>
           </View>
 
           <View style={styles.detailRow}>
             <View style={styles.detailIconWrapper}>
-              <Text style={styles.feeCurrency}>$</Text>
+              <Text style={styles.feeCurrency}>₹</Text>
             </View>
             <View style={styles.detailTextWrapper}>
               <Text style={styles.detailLabel}>Consultation Fee</Text>
-              <Text style={styles.detailValue}>$50.00</Text>
+              <Text style={styles.detailValue}>{fee}</Text>
             </View>
           </View>
         </View>

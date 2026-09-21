@@ -10,9 +10,13 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import BottomTabBar from '../../components/BottomTabBar';
 import DashboardHeader from '../../components/DashboardHeader';
+import { MockDB } from '@/utils/storage';
+import { RemoteAPI } from '@/utils/api';
 
 export default function AddPatientScreen() {
   const router = useRouter();
@@ -22,6 +26,45 @@ export default function AddPatientScreen() {
   const [mobileNumber, setMobileNumber] = useState('');
   const [session, setSession] = useState<'morning' | 'evening'>('morning');
   const [bookingType, setBookingType] = useState<'walk-in' | 'phone'>('walk-in');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleRegisterPatient = async () => {
+    if (!patientName.trim()) {
+      Alert.alert('Required', 'Please enter patient full name');
+      return;
+    }
+    const cleanPhone = mobileNumber.trim() || '9876543299';
+
+    try {
+      setSubmitting(true);
+      const sess = await MockDB.getCurrentSession();
+      const doctorId = sess?.doctorId || sess?.id || 'doc-1';
+
+      const res = await RemoteAPI.bookRegularToken({
+        doctorId,
+        patientName: patientName.trim(),
+        patientPhone: cleanPhone,
+        condition: `${bookingType === 'walk-in' ? 'Walk-in' : 'Phone'} Registration`,
+        source: 'WALK_IN_RECEPTIONIST',
+      });
+
+      Alert.alert(
+        'Token Generated',
+        `Successfully issued Token ${res.token?.tokenNumber || 'TK-01'} for ${patientName.trim()}.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => router.back(),
+          },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert('Registration Failed', err?.message || 'Could not register patient or issue token');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -160,9 +203,19 @@ export default function AddPatientScreen() {
         </View>
 
         {/* Buttons */}
-        <Pressable style={styles.submitButton} onPress={() => router.back()}>
-          <Text style={styles.submitButtonText}>Register & Generate Token</Text>
-          <Ionicons name="ticket-outline" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+        <Pressable
+          style={[styles.submitButton, submitting && { opacity: 0.7 }]}
+          onPress={handleRegisterPatient}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Text style={styles.submitButtonText}>Register & Generate Token</Text>
+              <Ionicons name="ticket-outline" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+            </>
+          )}
         </Pressable>
 
         <Pressable style={styles.cancelButton} onPress={() => router.push('/dashboard')}>

@@ -10,8 +10,12 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import BottomTabBar from '../../components/BottomTabBar';
+import { MockDB } from '@/utils/storage';
+import { RemoteAPI } from '@/utils/api';
 
 export default function PriorityOverrideScreen() {
   const router = useRouter();
@@ -19,6 +23,43 @@ export default function PriorityOverrideScreen() {
   const [patientName, setPatientName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [condition, setCondition] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleGenerateEmergencyToken = async () => {
+    if (!patientName.trim()) {
+      Alert.alert('Required Field', 'Please enter patient full name');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const session = await MockDB.getCurrentSession();
+      const doctorId = session?.doctorId || session?.id || 'doc-1';
+
+      const res = await RemoteAPI.bookEmergencyToken({
+        doctorId,
+        patientName: patientName.trim(),
+        patientPhone: mobileNumber.trim() || '9999999999',
+        condition: condition.trim() || 'Emergency Case',
+      });
+
+      Alert.alert(
+        'Emergency Token Generated',
+        `Token ${res.token?.tokenNumber || 'E-001'} generated at Priority 0.`,
+        [
+          {
+            text: 'View Queue',
+            onPress: () => router.replace('/(doctor)/queue'),
+          },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert('Booking Failed', err?.message || 'Could not issue emergency token');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -100,13 +141,15 @@ export default function PriorityOverrideScreen() {
 
         {/* Action Button */}
         <Pressable 
-          style={styles.submitButton}
-          onPress={() => {
-            // For now, push to a hypothetical success page or go back
-            router.push('/success'); 
-          }}
+          style={[styles.submitButton, submitting && { opacity: 0.7 }]}
+          onPress={handleGenerateEmergencyToken}
+          disabled={submitting}
         >
-          <Text style={styles.submitButtonText}>Generate Emergency Token</Text>
+          {submitting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.submitButtonText}>Generate Emergency Token</Text>
+          )}
         </Pressable>
 
         <Pressable style={styles.cancelButton} onPress={() => router.back()}>

@@ -1,0 +1,506 @@
+[
+  {
+    "tcId": "TC-001",
+    "title": "Super Admin Login with Valid Credentials",
+    "module": "Auth",
+    "role": "Super Admin",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200, UserRole: SUPER_ADMIN"
+  },
+  {
+    "tcId": "TC-002",
+    "title": "Super Admin Login with Invalid Password",
+    "module": "Auth",
+    "role": "Super Admin",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 401"
+  },
+  {
+    "tcId": "TC-003",
+    "title": "Patient A Registration",
+    "module": "Auth",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 201"
+  },
+  {
+    "tcId": "TC-004",
+    "title": "Patient A Login via OTP",
+    "module": "Auth",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200"
+  },
+  {
+    "tcId": "TC-005",
+    "title": "Patient B Registration & Isolation",
+    "module": "Auth",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 201"
+  },
+  {
+    "tcId": "TC-006",
+    "title": "Doctor Login with OTP Mode",
+    "module": "Auth",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200"
+  },
+  {
+    "tcId": "TC-007",
+    "title": "Development Backdoor Authentication Bypass Rejection",
+    "module": "Auth",
+    "role": "Security",
+    "priority": "Critical",
+    "status": "PASS",
+    "evidence": "Status: 403"
+  },
+  {
+    "tcId": "TC-008",
+    "title": "Patient Browses Doctor List",
+    "module": "Patient",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200"
+  },
+  {
+    "tcId": "TC-009",
+    "title": "Patient Views Doctor Details & Queue Count",
+    "module": "Patient",
+    "role": "Patient",
+    "priority": "Medium",
+    "status": "PASS",
+    "evidence": "Status: 200"
+  },
+  {
+    "tcId": "TC-010",
+    "title": "Patient Joins Queue (Regular Token Generation)",
+    "module": "Patient",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 201, Token: TK-43"
+  },
+  {
+    "tcId": "TC-011",
+    "title": "Patient Position & Wait Time Calculation",
+    "module": "Patient",
+    "role": "Patient",
+    "priority": "High",
+    "status": "FAIL",
+    "evidence": "Pos: undefined, Wait: undefined"
+  },
+  {
+    "tcId": "TC-012",
+    "title": "Live Queue Recent Activity Feed",
+    "module": "Patient",
+    "role": "Patient",
+    "priority": "Medium",
+    "status": "PASS",
+    "evidence": "Clean dynamic timeline: true"
+  },
+  {
+    "tcId": "TC-013",
+    "title": "Patient Tracks Active Token via Backend API",
+    "module": "Patient",
+    "role": "Patient",
+    "priority": "High",
+    "status": "FAIL",
+    "evidence": "ActiveToken exists: false"
+  },
+  {
+    "tcId": "TC-014",
+    "title": "Patient Cancels Active Token from Queue UI",
+    "module": "Patient",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200, TokenStatus: CANCELLED"
+  },
+  {
+    "tcId": "TC-015",
+    "title": "Real-time Alert When Token is Called",
+    "module": "Patient",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "queue.tsx listens to queue:token_called: true"
+  },
+  {
+    "tcId": "TC-016",
+    "title": "Doctor Registration Initial Status",
+    "module": "Doctor",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 201, ApprovalStatus: PENDING"
+  },
+  {
+    "tcId": "TC-017",
+    "title": "Doctor Dashboard Queue Metrics Loading",
+    "module": "Doctor",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "dashboard.tsx connects to backend: true"
+  },
+  {
+    "tcId": "TC-018",
+    "title": "Doctor Calls Next Patient (WAITING -> CALLED)",
+    "module": "Doctor",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200, TokenStatus: CALLED"
+  },
+  {
+    "tcId": "TC-019",
+    "title": "Doctor Starts Serving Patient (CALLED -> SERVING)",
+    "module": "Doctor",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200, TokenStatus: SERVING"
+  },
+  {
+    "tcId": "TC-020",
+    "title": "Doctor Completes Patient Consultation (SERVING -> COMPLETED)",
+    "module": "Doctor",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200, TokenStatus: COMPLETED"
+  },
+  {
+    "tcId": "TC-021",
+    "title": "Doctor Skips Patient (WAITING/CALLED -> SKIPPED)",
+    "module": "Doctor",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200, TokenStatus: SKIPPED"
+  },
+  {
+    "tcId": "TC-022",
+    "title": "Doctor Pauses Queue Execution",
+    "module": "Doctor",
+    "role": "Doctor",
+    "priority": "Medium",
+    "status": "PASS",
+    "evidence": "Status: 200, isPaused: true"
+  },
+  {
+    "tcId": "TC-023",
+    "title": "Doctor Resumes Paused Queue",
+    "module": "Doctor",
+    "role": "Doctor",
+    "priority": "Medium",
+    "status": "PASS",
+    "evidence": "Status: 200, isPaused: false"
+  },
+  {
+    "tcId": "TC-024",
+    "title": "Doctor Authorizes Receptionist",
+    "module": "Doctor",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 201"
+  },
+  {
+    "tcId": "TC-025",
+    "title": "Receptionist Login via Dedicated Role",
+    "module": "Receptionist",
+    "role": "Receptionist",
+    "priority": "High",
+    "status": "FAIL",
+    "evidence": "Status: 404 (Fallback mode queries doctors only, not receptionists)"
+  },
+  {
+    "tcId": "TC-026",
+    "title": "Receptionist Searches Patient by Phone",
+    "module": "Receptionist",
+    "role": "Receptionist",
+    "priority": "Medium",
+    "status": "PASS",
+    "evidence": "Status: 200"
+  },
+  {
+    "tcId": "TC-027",
+    "title": "Receptionist Registers Walk-in Patient & Generates Token",
+    "module": "Receptionist",
+    "role": "Receptionist",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Real API in add-patient.tsx: true"
+  },
+  {
+    "tcId": "TC-028",
+    "title": "Receptionist Permission Enforcement (Action Gating / Patient Access)",
+    "module": "Receptionist",
+    "role": "Security",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "GET /api/patients is UNPROTECTED (401)"
+  },
+  {
+    "tcId": "TC-029",
+    "title": "Multi-Clinic Receptionist Tenant Isolation",
+    "module": "Receptionist",
+    "role": "Security",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200"
+  },
+  {
+    "tcId": "TC-030",
+    "title": "Saving Updated Receptionist Permissions",
+    "module": "Receptionist",
+    "role": "Doctor",
+    "priority": "Medium",
+    "status": "NOT IMPLEMENTED",
+    "evidence": "staff-permissions.tsx save functionality: false"
+  },
+  {
+    "tcId": "TC-031",
+    "title": "Generate Emergency Token via Backend API",
+    "module": "Emergency",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 201, Priority: 0"
+  },
+  {
+    "tcId": "TC-032",
+    "title": "Emergency Token Priority Queue Preemption",
+    "module": "Emergency",
+    "role": "System",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200, Token: EM-16, Type: EMERGENCY"
+  },
+  {
+    "tcId": "TC-033",
+    "title": "Emergency Token Generation via Mobile UI (priority-override.tsx)",
+    "module": "Emergency",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Connects to bookEmergencyToken: true"
+  },
+  {
+    "tcId": "TC-034",
+    "title": "Preemption of Active In-Room Consultation (Business Rule Check)",
+    "module": "Emergency",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "In-room SERVING consultation remains intact: true"
+  },
+  {
+    "tcId": "TC-035",
+    "title": "Super Admin Views Pending Provider Submissions",
+    "module": "Admin",
+    "role": "Super Admin",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200, Count: 4"
+  },
+  {
+    "tcId": "TC-036",
+    "title": "Super Admin Approves Doctor Registration",
+    "module": "Admin",
+    "role": "Super Admin",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200, Approval: APPROVED"
+  },
+  {
+    "tcId": "TC-037",
+    "title": "Super Admin Rejects Doctor Registration with Mandatory Reason",
+    "module": "Admin",
+    "role": "Super Admin",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "NoReason: 400, WithReason: 200"
+  },
+  {
+    "tcId": "TC-038",
+    "title": "Super Admin Suspends Doctor/Clinic Registration",
+    "module": "Admin",
+    "role": "Super Admin",
+    "priority": "High",
+    "status": "NOT IMPLEMENTED",
+    "evidence": "Status: 404 (Endpoint /suspend not implemented)"
+  },
+  {
+    "tcId": "TC-039",
+    "title": "Socket.IO Server Connection & Queue Room Join",
+    "module": "Real-time",
+    "role": "System",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Connected: true, Joined: true"
+  },
+  {
+    "tcId": "TC-040",
+    "title": "Doctor Action Broadcasts Real-Time Socket Event",
+    "module": "Real-time",
+    "role": "System",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Event received: true"
+  },
+  {
+    "tcId": "TC-041",
+    "title": "Mobile Patient Queue Screen Real-Time WebSocket Integration",
+    "module": "Real-time",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "queue.tsx imports and integrates SocketClient: true"
+  },
+  {
+    "tcId": "TC-042",
+    "title": "Mobile Doctor Dashboard Real-Time WebSocket Integration",
+    "module": "Real-time",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "dashboard.tsx imports and integrates SocketClient: true"
+  },
+  {
+    "tcId": "TC-043",
+    "title": "Unauthorized Access to Doctor Call-Next Endpoint",
+    "module": "Security",
+    "role": "Unauthenticated",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 401"
+  },
+  {
+    "tcId": "TC-044",
+    "title": "Unauthorized Access to Super Admin Pending Providers",
+    "module": "Security",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 403"
+  },
+  {
+    "tcId": "TC-045",
+    "title": "Public Unauthenticated Access to Patient Health Records (/api/patients)",
+    "module": "Security",
+    "role": "Unauthenticated",
+    "priority": "Critical",
+    "status": "PASS",
+    "evidence": "GET /api/patients status: 401 (Returns 0 patient records unauthenticated)"
+  },
+  {
+    "tcId": "TC-046",
+    "title": "Public Exposure of Doctor Aadhaar & PAN Numbers (/api/doctors)",
+    "module": "Security",
+    "role": "Unauthenticated",
+    "priority": "Critical",
+    "status": "PASS",
+    "evidence": "Aadhaar/PAN exposed: false"
+  },
+  {
+    "tcId": "TC-047",
+    "title": "Role Guard Middleware Usage in Production Routes",
+    "module": "Security",
+    "role": "System",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "requireRole occurrences: 12"
+  },
+  {
+    "tcId": "TC-048",
+    "title": "Cross-Role Token Hijacking (Patient attempting Pause)",
+    "module": "Security",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 403"
+  },
+  {
+    "tcId": "TC-049",
+    "title": "Doctor Calls Next When No Patients Are Waiting",
+    "module": "Queue",
+    "role": "Doctor",
+    "priority": "Medium",
+    "status": "PASS",
+    "evidence": "Status: 200, CurrentToken: None"
+  },
+  {
+    "tcId": "TC-050",
+    "title": "Duplicate Active Token Request for Same Patient & Doctor",
+    "module": "Queue",
+    "role": "Patient",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "d2 Status: 400, Error: You already have an active token (TK-47) with status 'WAITING'. Please complete or cancel it before booking another."
+  },
+  {
+    "tcId": "TC-051",
+    "title": "Token Generation with Missing Mandatory Fields",
+    "module": "API",
+    "role": "Patient",
+    "priority": "Medium",
+    "status": "PASS",
+    "evidence": "Status: 400"
+  },
+  {
+    "tcId": "TC-052",
+    "title": "Backend Route for Updating Patient Treatment Status",
+    "module": "API",
+    "role": "Doctor",
+    "priority": "High",
+    "status": "PASS",
+    "evidence": "Status: 200"
+  },
+  {
+    "tcId": "TC-053",
+    "title": "Maximum Daily Token Cap Enforcement",
+    "module": "Queue",
+    "role": "System",
+    "priority": "Medium",
+    "status": "NOT IMPLEMENTED",
+    "evidence": "Daily token cap check in server.js: false"
+  },
+  {
+    "tcId": "TC-054",
+    "title": "Network Disconnection & Client Reconnection",
+    "module": "Real-time",
+    "role": "System",
+    "priority": "Medium",
+    "status": "PASS",
+    "evidence": "socket.ts reconnection configuration: true"
+  },
+  {
+    "tcId": "TC-055",
+    "title": "Super Admin Web Responsiveness on Tablet (1024px)",
+    "module": "UI",
+    "role": "Admin",
+    "priority": "Medium",
+    "status": "PASS",
+    "evidence": "admin.css 1024px media query: true"
+  },
+  {
+    "tcId": "TC-056",
+    "title": "Super Admin Web Table Overflow on Mobile Viewport (<600px)",
+    "module": "UI",
+    "role": "Admin",
+    "priority": "Medium",
+    "status": "FAIL",
+    "evidence": "admin.css small screen table card transformation: false"
+  }
+]

@@ -89,58 +89,62 @@ const LogOutIcon = ({ size = 14, color = '#FF3B30' }) => (
   </Svg>
 );
 
+import { ActiveTokenData, DoctorRecord, MockDB } from '@/utils/storage';
+
 export default function HomeScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [hasActiveToken, setHasActiveToken] = useState(false);
+  const [activeToken, setActiveToken] = useState<ActiveTokenData | null>(null);
+  const [clinics, setClinics] = useState<DoctorRecord[]>([]);
+  const [cancelling, setCancelling] = useState(false);
 
-  // Focus effect to check if booking is currently active in storage
+  // Focus effect to load active token & live clinics from MockDB
   useFocusEffect(
     React.useCallback(() => {
-      const checkToken = async () => {
-        const active = await Storage.getItem('hasActiveToken');
-        setHasActiveToken(active === 'true');
+      let isMounted = true;
+      const loadData = async () => {
+        try {
+          const tokenData = await MockDB.getActiveToken();
+          if (isMounted) setActiveToken(tokenData);
+
+          const doctors = await MockDB.getDoctors();
+          if (isMounted) {
+            // Filter active doctors/clinics
+            setClinics(doctors.filter(d => d.status === 'ACTIVE'));
+          }
+        } catch (e) {
+          console.error('Error loading home data', e);
+        }
       };
-      checkToken();
+      loadData();
+      return () => {
+        isMounted = false;
+      };
     }, [])
   );
 
-  const handleLogout = async () => {
-    await Storage.removeItem('isLoggedIn');
-    await Storage.removeItem('hasOnboarded');
-    await Storage.removeItem('hasActiveToken');
-    router.replace('/');
+  const handleCancelToken = async () => {
+    if (cancelling) return;
+    setCancelling(true);
+    try {
+      if (activeToken?.id) {
+        await MockDB.cancelActiveToken(activeToken.id);
+      } else {
+        await MockDB.clearActiveToken();
+      }
+      setActiveToken(null);
+    } catch (e) {
+      console.error('Error cancelling token', e);
+    } finally {
+      setCancelling(false);
+    }
   };
 
-  const nearbyClinics = [
-    {
-      name: 'Central General Hospital',
-      distance: '0.8 km',
-      wait: '15 min wait',
-      rating: '4.8',
-      image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=300&q=80',
-    },
-    {
-      name: 'Northside Medical Clinic',
-      distance: '1.2 km',
-      wait: '8 min wait',
-      rating: '4.6',
-      image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=300&q=80',
-    },
-    {
-      name: 'Northside Medical Clinic',
-      distance: '1.2 km',
-      wait: '8 min wait',
-      rating: '4.6',
-      image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=300&q=80',
-    },
-  ];
+  const hasActiveToken = !!activeToken;
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-        
-
 
         {/* Search Bar Input */}
         <View style={styles.searchSection}>
@@ -160,7 +164,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Dynamic Queue Card depending on hasActiveToken */}
-        {hasActiveToken ? (
+        {hasActiveToken && activeToken ? (
           /* Live Queue Active Consultation Panel */
           <View style={styles.liveQueueCard}>
             {/* Top Live Details Row */}
@@ -172,28 +176,42 @@ export default function HomeScreen() {
               
               <View style={styles.waitEstimation}>
                 <ThemedText style={styles.estimateLabel}>Estimated Wait</ThemedText>
-                <ThemedText style={styles.estimateValue}>~12 mins</ThemedText>
+                <ThemedText style={styles.estimateValue}>~{Math.max(5, (activeToken.positionAhead || 1) * 5)} mins</ThemedText>
               </View>
             </View>
 
             {/* Consultation Token Number */}
-            <ThemedText style={styles.tokenNumber}>#A24</ThemedText>
+            <ThemedText style={styles.tokenNumber}>#{activeToken.token}</ThemedText>
+
+            {/* Doctor and Clinic Info */}
+            <View style={{ marginBottom: 12 }}>
+              <ThemedText style={{ fontSize: 16, fontWeight: '700', color: '#1A1C1F' }}>
+                {activeToken.doctorName}
+              </ThemedText>
+              <ThemedText style={{ fontSize: 13, color: '#60646C', marginTop: 2 }}>
+                {activeToken.clinicName || 'Speciality Consultation'} • {activeToken.session === 'evening' ? 'Evening' : 'Morning'} Session
+              </ThemedText>
+            </View>
 
             {/* Patients Ahead Info Bar */}
             <View style={styles.aheadBar}>
               <QueuePatientsIcon size={18} color="#0052FF" />
-              <ThemedText style={styles.aheadText}>4 patients ahead of you</ThemedText>
+              <ThemedText style={styles.aheadText}>
+                {activeToken.positionAhead > 0 ? `${activeToken.positionAhead} patients ahead of you` : 'You are next in queue!'}
+              </ThemedText>
             </View>
 
             {/* Consultation Actions */}
             <View style={styles.cardActionsRow}>
-              <Pressable style={styles.trackButton} onPress={() => router.push('/explore' as any)}>
+              <Pressable style={styles.trackButton} onPress={() => router.push('/(patient)/(tabs)/queue')}>
                 <CompassIcon size={16} color="#ffffff" />
                 <ThemedText style={styles.trackButtonText}>Track Live</ThemedText>
               </Pressable>
               
-              <Pressable style={styles.rescheduleButton}>
-                <ThemedText style={styles.rescheduleButtonText}>Reschedule</ThemedText>
+              <Pressable style={styles.rescheduleButton} onPress={handleCancelToken}>
+                <ThemedText style={styles.rescheduleButtonText}>
+                  {cancelling ? 'Exiting...' : 'Exit Queue'}
+                </ThemedText>
               </Pressable>
             </View>
           </View>
@@ -205,7 +223,7 @@ export default function HomeScreen() {
             </View>
             <ThemedText style={styles.inactiveTitle}>No Active Consultation</ThemedText>
             <ThemedText style={styles.inactiveSubtitle}>
-              You do not have any active queue tokens right now. Book an appointment to join a queue.
+              You do not have any active queue tokens right now. Book an appointment to join a live doctor queue.
             </ThemedText>
             <Pressable style={styles.inactiveButton} onPress={() => router.push('/explore' as any)}>
               <BookPlusIcon size={14} color="#ffffff" />
@@ -226,26 +244,26 @@ export default function HomeScreen() {
 
           {/* Action 2: History */}
           <View style={styles.actionColumn}>
-            <Pressable style={styles.actionCircle}>
+            <Pressable style={styles.actionCircle} onPress={() => router.push('/(patient)/(tabs)/book')}>
               <ClockHistoryIcon size={20} color="#60646C" />
             </Pressable>
-            <ThemedText style={styles.actionLabel}>History</ThemedText>
+            <ThemedText style={styles.actionLabel}>Bookings</ThemedText>
           </View>
 
-          {/* Action 3: Consult */}
+          {/* Action 3: Live Queue */}
           <View style={styles.actionColumn}>
-            <Pressable style={styles.actionCircle}>
-              <MessageSquareIcon size={20} color="#60646C" />
+            <Pressable style={styles.actionCircle} onPress={() => router.push('/(patient)/(tabs)/queue')}>
+              <CompassIcon size={20} color="#60646C" />
             </Pressable>
-            <ThemedText style={styles.actionLabel}>Consult</ThemedText>
+            <ThemedText style={styles.actionLabel}>Live Queue</ThemedText>
           </View>
 
           {/* Action 4: Help */}
           <View style={styles.actionColumn}>
-            <Pressable style={styles.actionCircle}>
+            <Pressable style={styles.actionCircle} onPress={() => router.push('/(patient)/(tabs)/profile')}>
               <HelpCircleIcon size={20} color="#60646C" />
             </Pressable>
-            <ThemedText style={styles.actionLabel}>Help</ThemedText>
+            <ThemedText style={styles.actionLabel}>Profile</ThemedText>
           </View>
         </View>
 
@@ -254,58 +272,106 @@ export default function HomeScreen() {
           <ThemedText style={styles.sectionTitle}>UPCOMING</ThemedText>
         </View>
 
-        <View style={styles.upcomingCard}>
+        <Pressable 
+          style={styles.upcomingCard}
+          onPress={() => {
+            if (hasActiveToken) {
+              router.push('/(patient)/(tabs)/queue');
+            } else {
+              router.push('/explore' as any);
+            }
+          }}
+        >
           <View style={styles.dateBadge}>
-            <ThemedText style={styles.dateMonth}>OCT</ThemedText>
-            <ThemedText style={styles.dateDay}>14</ThemedText>
+            <ThemedText style={styles.dateMonth}>TODAY</ThemedText>
+            <ThemedText style={styles.dateDay}>{new Date().getDate()}</ThemedText>
           </View>
           
           <View style={styles.upcomingDetails}>
-            <ThemedText style={styles.upcomingDoctor}>Dr. Sarah Jenkins</ThemedText>
-            <ThemedText style={styles.upcomingInfo}>General GP • 09:30 AM</ThemedText>
+            <ThemedText style={styles.upcomingDoctor}>
+              {activeToken ? activeToken.doctorName : 'No Active Appointment'}
+            </ThemedText>
+            <ThemedText style={styles.upcomingInfo}>
+              {activeToken ? `${activeToken.specialty || 'General Consultation'} • Token #${activeToken.token}` : 'Tap to discover doctors & book a consultation'}
+            </ThemedText>
           </View>
 
           <ChevronRightIcon size={16} color="#B0B4BA" />
-        </View>
+        </Pressable>
 
-        {/* Nearby Clinics Section */}
+        {/* Nearby Doctors Section */}
         <View style={styles.sectionHeaderRow}>
-          <ThemedText style={styles.sectionTitle}>Near By Clinics</ThemedText>
-          <Pressable>
-            <ThemedText style={styles.seeAllLink}>See All</ThemedText>
+          <ThemedText style={styles.sectionTitle}>Nearby Doctors & Practices</ThemedText>
+          <Pressable onPress={() => router.push('/explore' as any)}>
+            <ThemedText style={styles.seeAllLink}>See All ({clinics.length})</ThemedText>
           </Pressable>
         </View>
 
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.clinicsScroll}
-        >
-          {nearbyClinics.map((clinic, idx) => (
-            <View key={idx} style={styles.clinicCard}>
-              <View style={styles.clinicImageContainer}>
-                <Image source={{ uri: clinic.image }} style={styles.clinicImage} />
-                <View style={styles.ratingBadge}>
-                  <StarIcon size={11} color="#FFB000" />
-                  <ThemedText style={styles.ratingValue}>{clinic.rating}</ThemedText>
-                </View>
-              </View>
+        {clinics.length === 0 ? (
+          <View style={{ padding: 24, backgroundColor: '#FFFFFF', borderRadius: 14, marginHorizontal: 20, alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' }}>
+            <ThemedText style={{ color: '#64748B', fontSize: 14, fontWeight: '600', marginBottom: 4 }}>No Doctors Registered Yet</ThemedText>
+            <ThemedText style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center' }}>Once medical doctors register and get approved, they will appear here dynamically.</ThemedText>
+          </View>
+        ) : (
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.clinicsScroll}
+          >
+            {clinics.map((clinic, idx) => {
+              const clinicImg = idx % 2 === 0
+                ? 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=300&q=80'
+                : 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=300&q=80';
+              const waitTime = (clinic.waitingQueueCount || 0) > 0 
+                ? `${(clinic.waitingQueueCount || 0) * 5} min wait`
+                : 'No wait';
 
-              <View style={styles.clinicInfo}>
-                <ThemedText style={styles.clinicName} numberOfLines={1}>{clinic.name}</ThemedText>
-                <View style={styles.clinicMetaRow}>
-                  <View style={styles.distanceGroup}>
-                    <MapPinIcon size={12} color="#90949C" />
-                    <ThemedText style={styles.distanceText}>{clinic.distance}</ThemedText>
+              return (
+                <Pressable 
+                  key={clinic.id || idx} 
+                  style={styles.clinicCard}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/doctor-details',
+                      params: {
+                        id: clinic.id,
+                        name: clinic.name,
+                        clinicName: clinic.clinicName || '',
+                        specialty: `${clinic.specialization} • ${clinic.clinicName || 'Clinic'}`,
+                        fee: clinic.consultationFee || '₹500',
+                        waitingQueueCount: String(clinic.waitingQueueCount || 0),
+                        rating: String(clinic.rating || 4.8),
+                      }
+                    } as any);
+                  }}
+                >
+                  <View style={styles.clinicImageContainer}>
+                    <Image source={{ uri: clinicImg }} style={styles.clinicImage} />
+                    <View style={styles.ratingBadge}>
+                      <StarIcon size={11} color="#FFB000" />
+                      <ThemedText style={styles.ratingValue}>{String(clinic.rating || 4.8)}</ThemedText>
+                    </View>
                   </View>
-                  <View style={styles.waitPill}>
-                    <ThemedText style={styles.waitPillText}>{clinic.wait}</ThemedText>
+
+                  <View style={styles.clinicInfo}>
+                    <ThemedText style={styles.clinicName} numberOfLines={1}>
+                      {clinic.clinicName || clinic.name}
+                    </ThemedText>
+                    <View style={styles.clinicMetaRow}>
+                      <View style={styles.distanceGroup}>
+                        <MapPinIcon size={12} color="#90949C" />
+                        <ThemedText style={styles.distanceText}>{clinic.city || '0.8 km'}</ThemedText>
+                      </View>
+                      <View style={styles.waitPill}>
+                        <ThemedText style={styles.waitPillText}>{waitTime}</ThemedText>
+                      </View>
+                    </View>
                   </View>
-                </View>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* Reset App Trigger Link */}
         {/* <Pressable style={styles.logoutButton} onPress={handleLogout}>

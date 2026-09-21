@@ -99,7 +99,7 @@ export default function BookingSuccessScreen() {
   const expectedTime = (params.expectedTime as string) || '10:30 AM';
   const positionAhead = (params.positionAhead as string) || '4 Ahead';
 
-  const clinicName = parseClinicName(specialty);
+  const clinicName = (params.clinicName as string) || parseClinicName(specialty);
   const doctorRole = parseDoctorRole(specialty);
   const dateSession = `${appointmentDate}, ${formatSessionLabel(session)}`;
 

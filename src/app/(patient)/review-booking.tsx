@@ -60,16 +60,18 @@ const TicketIcon = ({ size = 18, color = '#ffffff' }) => (
   </Svg>
 );
 
+import { MockDB, PatientRecord } from '@/utils/storage';
+
 function formatFeeAmount(fee: string) {
+  if (fee.includes('₹')) return fee;
   const numeric = fee.replace(/[^0-9.]/g, '');
-  if (!numeric) return '$100.00';
-  const value = Number.parseFloat(numeric);
-  return `$${value.toFixed(2)}`;
+  if (!numeric) return '₹500';
+  return `₹${numeric}`;
 }
 
 function parseClinicName(specialty: string) {
   const parts = specialty.split('•').map((part) => part.trim());
-  return parts.length > 1 ? parts[parts.length - 1] : 'City Heart Clinic';
+  return parts.length > 1 ? parts[parts.length - 1] : 'Indiranagar Medical Clinic';
 }
 
 function parseDoctorRole(specialty: string) {
@@ -82,44 +84,137 @@ export default function ReviewBookingScreen() {
   const params = useLocalSearchParams();
   const [confirming, setConfirming] = useState(false);
 
-  const name = (params.name as string) || 'Dr. Sarah Mitchell';
-  const specialty = (params.specialty as string) || 'General Physician • City Heart Clinic';
+  const doctorId = (params.doctorId as string) || '';
+  const name = (params.name as string) || 'Practitioner';
+  const specialty = (params.specialty as string) || 'Specialist Consultation';
+  const paramClinicName = (params.clinicName as string) || '';
   const image =
     (params.image as string) ||
     'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=200&q=80';
-  const fee = (params.fee as string) || '$100';
-  const appointmentDate = (params.appointmentDate as string) || '24 Oct 2023';
+  const fee = (params.fee as string) || '₹500';
+  const appointmentDate = (params.appointmentDate as string) || 'Today';
   const session = (params.session as string) || 'morning';
   const familyMember = (params.familyMember as string) || 'Myself';
   const otherFamilyMember = (params.otherFamilyMember as string) || '';
-  const reason = (params.reason as string) || 'Check-up and consultation';
+  const reason = (params.reason as string) || 'General checkup and consultation';
+  const waitingQueueCount = Number(params.waitingQueueCount || 0);
 
   const feeAmount = formatFeeAmount(fee);
   const sessionLabel = session === 'evening' ? 'Evening Session' : 'Morning Session';
-  const clinicName = parseClinicName(specialty);
+  const clinicName = paramClinicName || parseClinicName(specialty);
   const doctorRole = parseDoctorRole(specialty);
-  const patientName = familyMember === 'Myself' ? 'John Doe' : familyMember === 'Others' && otherFamilyMember ? otherFamilyMember : familyMember;
+  const patientName = familyMember === 'Myself' ? 'Patient' : familyMember === 'Others' && otherFamilyMember ? otherFamilyMember : familyMember;
 
   const handleConfirm = async () => {
     setConfirming(true);
     try {
-      await Storage.setItem('hasActiveToken', 'true');
+      // Get current user session if exists
+      const sessionUser = await MockDB.getCurrentSession();
+      const resolvedName = familyMember === 'Myself' ? (sessionUser?.name || 'Patient') : patientName;
+      const resolvedPhone = sessionUser?.phone || '9876500001';
+
+      // Call real backend API for token booking
+      let tokenNumber = '';
+      let tokenId = '';
+      let queueId = '';
+      let serverPositionAhead = Math.max(0, waitingQueueCount);
+      let serverWaitMinutes = (serverPositionAhead + 1) * 10;
+
+      try {
+        const { RemoteAPI } = await import('@/utils/api');
+        const apiRes = await RemoteAPI.bookRegularToken({
+          doctorId,
+          patientName: resolvedName,
+          patientPhone: resolvedPhone,
+          condition: reason,
+          source: 'APP_BOOKING',
+        });
+
+        if (apiRes && apiRes.token) {
+          tokenNumber = apiRes.token.tokenNumber;
+          tokenId = apiRes.token.id || apiRes.token._id || `tk-${Date.now()}`;
+          queueId = apiRes.token.queueId || `queue-${doctorId}`;
+          serverPositionAhead = apiRes.token.positionAhead !== undefined ? apiRes.token.positionAhead : serverPositionAhead;
+          serverWaitMinutes = apiRes.token.estimatedWaitMinutes || ((serverPositionAhead + 1) * 10);
+        } else {
+          throw new Error('Could not obtain token from clinic server.');
+        }
+      } catch (err: any) {
+        setConfirming(false);
+        const errorMsg = err.message || 'Failed to book token. Please try again.';
+        if (Platform.OS === 'web') {
+          window.alert(errorMsg);
+        } else {
+          const { Alert } = require('react-native');
+          Alert.alert('Booking Error', errorMsg);
+        }
+        return;
+      }
+
+      const bookingId = `#BK-${tokenNumber.replace(/\D/g, '') || Date.now().toString().slice(-4)}`;
+      const expectedTimeDate = new Date(Date.now() + serverWaitMinutes * 60000);
+      const expectedTimeStr = expectedTimeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Also register in local patient cache for consistency
+      await MockDB.addPatient({
+        id: tokenId,
+        name: resolvedName,
+        phone: resolvedPhone,
+        age: 32,
+        gender: 'MALE',
+        assignedDoctorId: doctorId,
+        assignedDoctorName: name,
+        clinicName: clinicName,
+        tokenNumber: tokenNumber,
+        treatmentStatus: 'WAITING',
+        condition: reason,
+        totalVisits: 1,
+      });
+
+      // Save Active Token state with server data
+      await MockDB.setActiveToken({
+        id: tokenId,
+        token: tokenNumber,
+        queueId,
+        doctorId,
+        doctorName: name,
+        clinicName,
+        specialty,
+        image,
+        fee,
+        appointmentDate,
+        session,
+        patientName: resolvedName,
+        patientPhone: resolvedPhone,
+        condition: reason,
+        positionAhead: serverPositionAhead,
+        expectedTime: expectedTimeStr,
+        createdAt: new Date().toISOString(),
+        status: 'WAITING',
+      });
+
       router.replace({
         pathname: '/booking-success',
         params: {
+          id: tokenId,
+          doctorId,
           name,
           specialty,
           image,
           appointmentDate,
           session,
-          token: 'A-24',
-          bookingId: '#SC-98231',
-          expectedTime: '10:30 AM',
-          positionAhead: '4 Ahead',
+          token: tokenNumber,
+          bookingId,
+          expectedTime: expectedTimeStr,
+          positionAhead: `${serverPositionAhead} Ahead`,
+          clinicName,
         },
       } as any);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error confirming booking', e);
+      if (Platform.OS === 'web') {
+        window.alert(e.message || 'Error confirming booking');
+      }
     } finally {
       setConfirming(false);
     }

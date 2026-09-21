@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { MockDB } from '@/utils/storage';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -24,6 +25,11 @@ export default function HospitalInfoScreen() {
   
   // Dummy specialties for UI
   const [specialties, setSpecialties] = useState(['General Physician', 'Dermatology', 'Pediatrics']);
+
+  useEffect(() => {
+    // Clinic/Hospital flow has been retired in favor of Doctor onboarding
+    router.replace('/doctor-info');
+  }, [router]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -211,7 +217,18 @@ export default function HospitalInfoScreen() {
             </View>
 
             {/* Continue Button */}
-            <Pressable style={styles.button} onPress={() => router.push('/doctors-info')}>
+            <Pressable
+              style={styles.button}
+              onPress={async () => {
+                await MockDB.saveRegistrationDraft({
+                  clinicName: name.trim() || 'Modern Healthcare Clinic',
+                  specialization: specialties.join(', ') || 'Multi-Speciality Care',
+                  licenseNumber: regNumber.trim(),
+                  type: 'CLINIC',
+                });
+                router.push('/doctors-info');
+              }}
+            >
               <Text style={styles.buttonText}>Continue</Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
             </Pressable>

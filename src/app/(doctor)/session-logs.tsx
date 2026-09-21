@@ -19,10 +19,10 @@ export default function SessionLogsScreen() {
   const logs = [
     { id: '1', type: 'emergency', title: 'Emergency Token E-001 Generated', time: '12:45 PM', detail: 'Patient: Michael Smith' },
     { id: '2', type: 'complete', title: 'Token 403 Completed', time: '12:30 PM', detail: 'Patient: Clara Oswald' },
-    { id: '3', type: 'skip', title: 'Token 402 Skipped', time: '12:15 PM', detail: 'Patient: Jonathan Henderson' },
+    { id: '3', type: 'skip', title: 'Token 402 Skipped', time: '12:15 PM', detail: 'Patient: Token Rescheduled' },
     { id: '4', type: 'checkin', title: 'Token 404 Checked-in', time: '11:50 AM', detail: 'Patient: Arthur Williams' },
     { id: '5', type: 'complete', title: 'Token 401 Completed', time: '10:15 AM', detail: 'Patient: Amelia Pond' },
-    { id: '6', type: 'start', title: 'Morning Session Started', time: '09:00 AM', detail: 'Dr. Sarah Jenkins' },
+    { id: '6', type: 'start', title: 'Morning Session Started', time: '09:00 AM', detail: 'Clinic Practitioner' },
   ];
 
   const getLogIcon = (type: string) => {

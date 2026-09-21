@@ -1,4 +1,4 @@
-import { Storage } from '@/utils/storage';
+import { Storage, MockDB } from '@/utils/storage';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -15,9 +15,20 @@ export default function SplashScreen() {
       if (!active) return;
 
       if (isLoggedIn === 'true') {
-        router.replace('/(patient)/(tabs)/home');
+        const session = await MockDB.getCurrentSession();
+        if (session?.role === 'DOCTOR' || session?.role === 'CLINIC') {
+          if (session.status === 'PENDING' || session.status === 'REJECTED' || session.status === 'SUSPENDED') {
+            router.replace('/(doctor)/pending-verification');
+          } else {
+            router.replace('/(doctor)/dashboard');
+          }
+        } else if (session?.role === 'RECEPTIONIST' || session?.role === 'STAFF') {
+          router.replace('/(doctor)/dashboard');
+        } else {
+          router.replace('/(patient)/(tabs)/home');
+        }
       } else {
-        router.replace('/login');
+        router.replace('/(auth)/role-selection');
       }
     };
 

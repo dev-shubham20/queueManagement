@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   SafeAreaView,
   ScrollView,
@@ -10,19 +10,79 @@ import {
   Pressable,
   Switch,
   Platform,
-  Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import BottomTabBar from '../../components/BottomTabBar';
 import DashboardHeader from '../../components/DashboardHeader';
+import { RemoteAPI } from '../../utils/api';
 
 export default function StaffPermissionsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ id?: string; name?: string; role?: string; permissions?: string }>();
+  const staffId = params.id;
+  const staffName = params.name || 'Staff Member';
+  const staffRole = params.role || 'RECEPTIONIST';
+
+  // Parse initial permissions if provided in params
+  const initialPerms = React.useMemo(() => {
+    if (!params.permissions) return null;
+    try {
+      return Array.isArray(params.permissions) ? params.permissions : JSON.parse(params.permissions);
+    } catch {
+      return typeof params.permissions === 'string' ? params.permissions.split(',') : null;
+    }
+  }, [params.permissions]);
 
   // State for permissions
-  const [queueManagement, setQueueManagement] = useState(true);
-  const [patientRecords, setPatientRecords] = useState(true);
-  const [billing, setBilling] = useState(false);
-  const [administrative, setAdministrative] = useState(false);
+  const [queueManagement, setQueueManagement] = useState(() => {
+    if (!initialPerms) return true;
+    return initialPerms.includes('queue_manage') || initialPerms.includes('queue:pause') || initialPerms.includes('queue:resume');
+  });
+  const [patientRecords, setPatientRecords] = useState(() => {
+    if (!initialPerms) return true;
+    return initialPerms.includes('patient_records') || initialPerms.includes('patient:search');
+  });
+  const [billing, setBilling] = useState(() => {
+    if (!initialPerms) return false;
+    return initialPerms.includes('billing') || initialPerms.includes('payments');
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!staffId) {
+      Alert.alert('Error', 'Staff ID is missing. Cannot update permissions.');
+      return;
+    }
+
+    // Map UI checkboxes to canonical permission strings
+    const canonicalPermissions: string[] = [];
+    if (queueManagement) {
+      canonicalPermissions.push('queue:view', 'queue:pause', 'queue:resume', 'queue_manage');
+    }
+    if (patientRecords) {
+      canonicalPermissions.push('patient:search', 'patient:create', 'patient_records');
+    }
+    // Receptionists by default get regular & emergency token issuance if queue or patient active
+    if (queueManagement) {
+      canonicalPermissions.push('token:create', 'token:create_emergency', 'token:cancel', 'token_issue');
+    }
+    if (billing) {
+      canonicalPermissions.push('billing', 'payments');
+    }
+
+    try {
+      setSaving(true);
+      await RemoteAPI.updateReceptionistPermissions(staffId, canonicalPermissions);
+      Alert.alert('Success', `Permissions updated for ${staffName}.`, [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch (err: any) {
+      Alert.alert('Update Failed', err.message || 'Could not update receptionist permissions.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Custom Checkbox component to match the circular blue check design
   const CircularCheckbox = ({ checked, onChange }: { checked: boolean; onChange: (val: boolean) => void }) => {
@@ -57,18 +117,18 @@ export default function StaffPermissionsScreen() {
               </View>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>Dr. Sarah Jenkins</Text>
+              <Text style={styles.profileName}>{staffName}</Text>
               <View style={styles.profileSubtitleRow}>
-                <Text style={styles.profileSubtitleGray}>Senior Practitioner</Text>
+                <Text style={styles.profileSubtitleGray}>{staffRole}</Text>
                 <Text style={styles.profileSubtitleDot}> • </Text>
-                <Text style={styles.profileSubtitleBlue}>General GP</Text>
+                <Text style={styles.profileSubtitleBlue}>Care Team</Text>
               </View>
               <View style={styles.pillsRow}>
                 <View style={styles.pillPurple}>
-                  <Text style={styles.pillPurpleText}>ID: STF-9920</Text>
+                  <Text style={styles.pillPurpleText}>ID: {staffId || 'STF-01'}</Text>
                 </View>
                 <View style={styles.pillGray}>
-                  <Text style={styles.pillGrayText}>Active since 2021</Text>
+                  <Text style={styles.pillGrayText}>Active</Text>
                 </View>
               </View>
             </View>
@@ -140,36 +200,46 @@ export default function StaffPermissionsScreen() {
           </Text>
         </View>
 
-        {/* Administrative Access */}
-        <View style={styles.permissionCard}>
+        {/* Administrative Access (Disabled/Display-Only for Receptionist) */}
+        <View style={[styles.permissionCard, { opacity: 0.6 }]}>
           <View style={styles.permissionHeaderRow}>
             <View style={[styles.iconBox, { backgroundColor: '#FEF2F2' }]}>
               <Ionicons name="settings-outline" size={20} color="#DC2626" />
             </View>
             <View style={styles.permissionTitleContainer}>
               <Text style={styles.permissionTitle}>Administrative Access</Text>
-              <Text style={styles.permissionSubtitle}>Modify clinic-wide settings</Text>
+              <Text style={styles.permissionSubtitle}>Modify clinic-wide settings (Owner only)</Text>
             </View>
             <Switch
               trackColor={{ false: '#D1D5DB', true: '#2563EB' }}
               thumbColor="#ffffff"
               ios_backgroundColor="#D1D5DB"
-              onValueChange={setAdministrative}
-              value={administrative}
+              value={false}
+              disabled={true}
             />
           </View>
           <Text style={styles.permissionDesc}>
-            Critical access to system-wide configurations, staff accounts, and security logs.
+            Critical access to system-wide configurations, staff accounts, and security logs. Restricted to Clinic Owners and Administrators.
           </Text>
         </View>
 
         {/* Action Buttons */}
-        <Pressable style={styles.updateButton} onPress={() => router.back()}>
-          <Text style={styles.updateButtonText}>Update Permissions</Text>
-          <Ionicons name="save-outline" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
+        <Pressable
+          style={[styles.updateButton, saving && { opacity: 0.7 }]}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Text style={styles.updateButtonText}>Update Permissions</Text>
+              <Ionicons name="save-outline" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
+            </>
+          )}
         </Pressable>
 
-        <Pressable style={styles.cancelButton} onPress={() => router.back()}>
+        <Pressable style={styles.cancelButton} onPress={() => router.back()} disabled={saving}>
           <Text style={styles.cancelButtonText}>Cancel Changes</Text>
         </Pressable>
 
@@ -177,7 +247,7 @@ export default function StaffPermissionsScreen() {
         <View style={styles.infoBox}>
           <Ionicons name="information-circle-outline" size={20} color="#4B5563" style={{ marginRight: 12, marginTop: 2 }} />
           <Text style={styles.infoText}>
-            Changes to user permissions are logged for auditing. Dr. Sarah Jenkins will receive a notification and may need to re-login to see updated access levels.
+            Changes to user permissions are logged for auditing. {staffName} will receive a notification and may need to re-login to see updated access levels.
           </Text>
         </View>
 

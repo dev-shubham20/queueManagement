@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   Platform,
   Pressable,
@@ -16,8 +16,16 @@ import { useState } from 'react';
 
 export default function TokenDetailsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [isSkipModalVisible, setSkipModalVisible] = useState(false);
   const [isCancelModalVisible, setCancelModalVisible] = useState(false);
+
+  const tokenNumber = (params.tokenNumber as string) || (params.token as string) || 'TK-101';
+  const patientName = (params.patientName as string) || (params.name as string) || 'Patient';
+  const doctorName = (params.doctorName as string) || (params.assignedDoctorName as string) || 'Practitioner';
+  const phone = (params.phone as string) || (params.patientPhone as string) || '--';
+  const session = (params.session as string) || 'Morning';
+  const initials = patientName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'PT';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -33,15 +41,15 @@ export default function TokenDetailsScreen() {
         {/* Patient Summary Card */}
         <View style={styles.patientCard}>
           <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>JH</Text>
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
           <View style={styles.patientInfo}>
-            <Text style={styles.patientName}>Jonathan Henderson</Text>
+            <Text style={styles.patientName}>{patientName}</Text>
             <View style={styles.patientMetaRow}>
               <View style={styles.pidBadge}>
-                <Text style={styles.pidText}>PID-8821</Text>
+                <Text style={styles.pidText}>PID-{tokenNumber.replace(/\D/g, '') || '01'}</Text>
               </View>
-              <Text style={styles.phoneText}>+1 (555) 012-3456</Text>
+              <Text style={styles.phoneText}>{phone.length === 10 ? `+91 ${phone}` : phone}</Text>
             </View>
           </View>
         </View>
@@ -57,26 +65,26 @@ export default function TokenDetailsScreen() {
           </View>
 
           <View style={styles.tokenNumberRow}>
-            <Text style={styles.tokenNumber}>GP-402</Text>
-            <Text style={styles.estTimeText}>Est: 12 mins left</Text>
+            <Text style={styles.tokenNumber}>{tokenNumber}</Text>
+            <Text style={styles.estTimeText}>Est: ~15 mins left</Text>
           </View>
 
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Doctor</Text>
-              <Text style={styles.detailValue}>Dr. Sarah Jenkins</Text>
+              <Text style={styles.detailValue}>{doctorName}</Text>
             </View>
             <View style={[styles.detailItem, { alignItems: 'flex-end' }]}>
               <Text style={styles.detailLabel}>Session</Text>
-              <Text style={styles.detailValue}>Morning</Text>
+              <Text style={styles.detailValue}>{session}</Text>
             </View>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Booking Type</Text>
-              <Text style={styles.detailValue}>Walk-in</Text>
+              <Text style={styles.detailValue}>Mobile App</Text>
             </View>
             <View style={[styles.detailItem, { alignItems: 'flex-end' }]}>
               <Text style={styles.detailLabel}>Status</Text>
-              <Text style={[styles.detailValue, { color: '#059669' }]}>Priority</Text>
+              <Text style={[styles.detailValue, { color: '#059669' }]}>Confirmed</Text>
             </View>
           </View>
         </View>
@@ -156,7 +164,7 @@ export default function TokenDetailsScreen() {
             
             <Text style={styles.modalTitle}>Skip Patient</Text>
             <Text style={styles.modalSubtitle}>
-              How would you like to handle Jonathan Henderson (GP-402)?
+              How would you like to handle {patientName} ({tokenNumber})?
             </Text>
 
             <View style={styles.modalActionStack}>
@@ -202,7 +210,7 @@ export default function TokenDetailsScreen() {
             
             <Text style={styles.modalTitle}>Cancel Appointment?</Text>
             <Text style={styles.modalSubtitle}>
-              Are you sure you want to cancel the appointment for Jonathan Henderson (GP-402)? This action cannot be undone.
+              Are you sure you want to cancel the appointment for {patientName} ({tokenNumber})? This action cannot be undone.
             </Text>
 
             <View style={styles.modalActionRow}>

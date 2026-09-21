@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
@@ -62,6 +62,14 @@ const PatientIcon = ({ size = 18, color = BRAND }) => (
 
 export default function BookingDetailsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+
+  const doctorName = (params.doctorName as string) || (params.name as string) || 'Practitioner';
+  const specialty = (params.specialty as string) || 'Specialist Consultation';
+  const clinicName = (params.clinicName as string) || 'Care Clinic';
+  const patientName = (params.patientName as string) || 'Patient';
+  const date = (params.date as string) || (params.appointmentDate as string) || 'Today';
+  const session = (params.session as string) || 'Morning';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -109,8 +117,8 @@ export default function BookingDetailsScreen() {
               />
             </View>
             <View style={styles.clinicText}>
-              <ThemedText style={styles.clinicName}>City Health Specialists</ThemedText>
-              <ThemedText style={styles.clinicAddress}>Suite 402, Medical Arts Tower, North Point</ThemedText>
+              <ThemedText style={styles.clinicName}>{clinicName}</ThemedText>
+              <ThemedText style={styles.clinicAddress}>Healthcare Clinic & Care Center</ThemedText>
               <Pressable style={styles.directionRow} onPress={() => { }}>
                 <LocationIcon />
                 <ThemedText style={styles.directionText}>Get Directions</ThemedText>
@@ -124,19 +132,19 @@ export default function BookingDetailsScreen() {
           <View style={styles.detailGrid}>
             <View style={styles.detailCell}>
               <ThemedText style={styles.detailLabel}>Doctor</ThemedText>
-              <ThemedText style={styles.detailValue}>Dr. Sarah Jenkins</ThemedText>
+              <ThemedText style={styles.detailValue}>{doctorName}</ThemedText>
             </View>
             <View style={styles.detailCell}>
               <ThemedText style={styles.detailLabel}>Specialty</ThemedText>
-              <ThemedText style={styles.detailValue}>Cardiologist</ThemedText>
+              <ThemedText style={styles.detailValue}>{specialty}</ThemedText>
             </View>
             <View style={styles.detailCell}>
               <ThemedText style={styles.detailLabel}>Date</ThemedText>
-              <ThemedText style={styles.detailValue}>Oct 24, 2023</ThemedText>
+              <ThemedText style={styles.detailValue}>{date}</ThemedText>
             </View>
             <View style={styles.detailCell}>
               <ThemedText style={styles.detailLabel}>Session</ThemedText>
-              <ThemedText style={styles.detailValue}>Morning (10:30 AM)</ThemedText>
+              <ThemedText style={styles.detailValue}>{session}</ThemedText>
             </View>
           </View>
         </View>
@@ -145,8 +153,8 @@ export default function BookingDetailsScreen() {
           <ThemedText style={styles.sectionTitle}>PATIENT</ThemedText>
           <View style={styles.patientRow}>
             <View>
-              <ThemedText style={styles.patientName}>Michael Stevens</ThemedText>
-              <ThemedText style={styles.patientSubtitle}>Self (Primary)</ThemedText>
+              <ThemedText style={styles.patientName}>{patientName}</ThemedText>
+              <ThemedText style={styles.patientSubtitle}>Primary</ThemedText>
             </View>
             <View style={styles.patientIconBox}>
               <PatientIcon />

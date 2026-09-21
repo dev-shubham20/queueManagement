@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, Text, Pressable, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -56,139 +56,464 @@ const Polygon = ({ points, fill, ...props }: any) => (
   </Svg>
 );
 
-const updates = [
-  { id: '1', title: 'Token A-19 called', subtitle: 'Proceed to Station 4B • 10:05 AM', active: true },
-  { id: '2', title: 'Token A-18 completed', subtitle: 'Consultation finished • 10:02 AM', active: false },
-  { id: '3', title: 'Token A-17 completed', subtitle: 'Consultation finished • 09:55 AM', active: false },
-];
+import { ActiveTokenData, DoctorRecord, MockDB } from '@/utils/storage';
+import { RemoteAPI } from '@/utils/api';
+import { SocketClient } from '@/utils/socket';
+import { useFocusEffect } from 'expo-router';
 
 export default function QueueScreen() {
   const router = useRouter();
+  const [activeToken, setActiveToken] = useState<ActiveTokenData | null>(null);
+  const [doctor, setDoctor] = useState<DoctorRecord | null>(null);
+  const [liveCurrentToken, setLiveCurrentToken] = useState<string>('None');
+  const [queueStatus, setQueueStatus] = useState<'ACTIVE' | 'PAUSED' | 'COMPLETED'>('ACTIVE');
+  const [pauseReason, setPauseReason] = useState<string>('');
+  const [tokenStatus, setTokenStatus] = useState<string>('WAITING');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+  const [recentEvents, setRecentEvents] = useState<Array<{ id: string; title: string; subtitle: string; active?: boolean }>>([]);
+
+  const connectSocket = (tok: ActiveTokenData) => {
+    try {
+      SocketClient.connect();
+      const qId = tok.queueId || `queue-${tok.doctorId}`;
+      SocketClient.joinQueue(qId);
+      if (tok.patientPhone) {
+        SocketClient.joinPatient(tok.patientPhone);
+      }
+
+      // Listen for token called
+      SocketClient.on('queue:token_called', (data: any) => {
+        setLiveCurrentToken(data.currentTokenNumber || 'None');
+        if (data.tokenId === tok.id || data.currentTokenNumber === tok.token) {
+          setTokenStatus('CALLED');
+          setRefreshMessage('🔔 YOUR TOKEN HAS BEEN CALLED! Please proceed to doctor consultation room.');
+        } else {
+          setActiveToken((prev) => (prev ? { ...prev, positionAhead: Math.max(0, prev.positionAhead - 1) } : null));
+        }
+        setRecentEvents((prev) => [
+          { id: `call-${Date.now()}`, title: `Token ${data.currentTokenNumber} called`, subtitle: `Consultation Room • Just now`, active: true },
+          ...prev.slice(0, 4)
+        ]);
+      });
+
+      // Listen for token serving
+      SocketClient.on('queue:token_serving', (data: any) => {
+        if (data.tokenId === tok.id || data.tokenNumber === tok.token) {
+          setTokenStatus('SERVING');
+        }
+      });
+
+      // Listen for token completed
+      SocketClient.on('queue:token_completed', (data: any) => {
+        if (data.tokenId === tok.id || data.tokenNumber === tok.token) {
+          setTokenStatus('COMPLETED');
+          setRefreshMessage('✅ Consultation completed. Thank you!');
+          setTimeout(() => {
+            MockDB.clearActiveToken();
+            setActiveToken(null);
+          }, 2500);
+        }
+        setRecentEvents((prev) => [
+          { id: `comp-${Date.now()}`, title: `Token ${data.tokenNumber} completed`, subtitle: `Consultation finished`, active: false },
+          ...prev.slice(0, 4)
+        ]);
+      });
+
+      // Listen for token skipped
+      SocketClient.on('queue:token_skipped', (data: any) => {
+        if (data.tokenId === tok.id || data.tokenNumber === tok.token) {
+          setTokenStatus('SKIPPED');
+          setRefreshMessage('⚠️ Your token was skipped by the doctor.');
+        }
+      });
+
+      // Listen for queue pause/resume
+      SocketClient.on('queue:status_changed', (data: any) => {
+        if (data.status) setQueueStatus(data.status);
+        if (data.status === 'PAUSED') {
+          setPauseReason(data.reason || 'Doctor in surgery / Queue paused');
+        } else {
+          setPauseReason('');
+        }
+      });
+
+      // Listen for emergency alerts
+      SocketClient.on('queue:emergency_alert', (data: any) => {
+        setRecentEvents((prev) => [
+          { id: `em-${Date.now()}`, title: `🚨 Emergency Token ${data.tokenNumber} issued`, subtitle: 'Priority triage at head of queue', active: true },
+          ...prev.slice(0, 4)
+        ]);
+      });
+    } catch (err) {
+      console.warn('Socket connection error in queue screen:', err);
+    }
+  };
+
+  const loadQueueData = async () => {
+    try {
+      const sessionUser = await MockDB.getCurrentSession();
+      const userPhone = sessionUser?.phone || '';
+
+      const localToken = await MockDB.getActiveToken();
+      let currentTokenData = localToken;
+
+      if (userPhone) {
+        const serverTokenRes = await RemoteAPI.getMyToken(userPhone);
+        if (serverTokenRes && serverTokenRes.activeToken) {
+          const sTok = serverTokenRes.activeToken;
+          currentTokenData = {
+            id: sTok.id || sTok._id,
+            token: sTok.tokenNumber,
+            queueId: sTok.queueId,
+            doctorId: sTok.doctorId,
+            doctorName: localToken?.doctorName || 'Dr. Practitioner',
+            clinicName: localToken?.clinicName || 'Care Clinic',
+            specialty: localToken?.specialty,
+            image: localToken?.image,
+            fee: localToken?.fee,
+            appointmentDate: localToken?.appointmentDate || 'Today',
+            session: localToken?.session || 'Morning',
+            patientName: sTok.patientName,
+            patientPhone: sTok.patientPhone,
+            condition: sTok.condition,
+            positionAhead: sTok.positionAhead !== undefined ? sTok.positionAhead : 0,
+            expectedTime: localToken?.expectedTime || `${sTok.estimatedWaitMinutes || 10} mins`,
+            createdAt: sTok.createdAt,
+            status: sTok.status,
+          };
+          await MockDB.setActiveToken(currentTokenData);
+          setLiveCurrentToken(sTok.currentTokenNumber || 'None');
+          setQueueStatus(sTok.queueStatus || 'ACTIVE');
+          setTokenStatus(sTok.status);
+        } else if (serverTokenRes && serverTokenRes.activeToken === null && localToken) {
+          await MockDB.clearActiveToken();
+          currentTokenData = null;
+        }
+      }
+
+      setActiveToken(currentTokenData);
+      if (currentTokenData) {
+        setTokenStatus(currentTokenData.status);
+        connectSocket(currentTokenData);
+      }
+
+      if (currentTokenData?.doctorId) {
+        const doctors = await MockDB.getDoctors();
+        const found = doctors.find((d) => d.id === currentTokenData.doctorId);
+        if (found) setDoctor(found);
+      }
+    } catch (e) {
+      console.error('Error fetching queue details', e);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadQueueData();
+      return () => {
+        SocketClient.off('queue:token_called');
+        SocketClient.off('queue:token_serving');
+        SocketClient.off('queue:token_completed');
+        SocketClient.off('queue:token_skipped');
+        SocketClient.off('queue:status_changed');
+        SocketClient.off('queue:emergency_alert');
+      };
+    }, [])
+  );
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshMessage('Syncing live queue from clinic server...');
+    await loadQueueData();
+    setTimeout(() => {
+      setIsRefreshing(false);
+      setRefreshMessage('Live queue updated!');
+      setTimeout(() => setRefreshMessage(null), 2500);
+    }, 500);
+  };
+
+  const handleCancelQueue = async () => {
+    if (isCancelling) return;
+    setIsCancelling(true);
+    try {
+      if (activeToken?.id) {
+        await MockDB.cancelActiveToken(activeToken.id);
+      } else {
+        await MockDB.clearActiveToken();
+      }
+      setActiveToken(null);
+      setDoctor(null);
+      setRefreshMessage('You have exited the queue.');
+      setTimeout(() => setRefreshMessage(null), 3000);
+    } catch (e) {
+      console.error('Error exiting queue', e);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const currentAhead = activeToken?.positionAhead !== undefined ? activeToken.positionAhead : 0;
+  const waitMinutes = currentAhead * 10;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Live Queue</Text>
+        {refreshMessage && (
+          <Text style={{ fontSize: 12, color: '#0052FF', fontFamily: 'Inter_600SemiBold', marginTop: 4 }}>
+            {refreshMessage}
+          </Text>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* Ticket Card */}
-        <View style={styles.ticketCard}>
-          <View style={styles.ticketHeader}>
-            <View style={styles.servingBadge}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.servingBadgeText}>Serving Now</Text>
-            </View>
-            <View style={styles.myTokenBadge}>
-              <Text style={styles.myTokenLabel}>MY TOKEN</Text>
-              <Text style={styles.myTokenValue}>A-24</Text>
-            </View>
-          </View>
-
-          <View style={styles.ticketBody}>
-            <Text style={styles.servingTokenLabel}>Current Token</Text>
-            <Text style={styles.servingTokenValue}>A-19</Text>
-          </View>
-
-          {/* Dotted Divider */}
-          <View style={styles.dividerWrapper}>
-            <View style={styles.cutoutLeft} />
-            <View style={styles.dottedLine} />
-            <View style={styles.cutoutRight} />
-          </View>
-
-          <View style={styles.ticketFooter}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressTitle}>Queue Progress</Text>
-              <Text style={styles.progressPercent}>78%</Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: '78%' }]} />
-            </View>
-          </View>
-        </View>
-
-        {/* Stats Grid */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIconBox, { backgroundColor: '#EEF2FF' }]}>
-              <UsersIcon color="#4F46E5" />
-            </View>
-            <Text style={styles.statValue}>5</Text>
-            <Text style={styles.statLabel}>Ahead of you</Text>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={[styles.statIconBox, { backgroundColor: '#FFF7ED' }]}>
-              <ClockIcon color="#EA580C" />
-            </View>
-            <Text style={styles.statValue}>~25m</Text>
-            <Text style={styles.statLabel}>Est. wait time</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIconBox, { backgroundColor: '#F0FDF4' }]}>
-              <CalendarIcon color="#16A34A" />
-            </View>
-            <Text style={styles.statValue}>10:30</Text>
-            <Text style={styles.statLabel}>Expected time</Text>
-          </View>
-        </View>
-
-        {/* Doctor Info */}
-        <View style={styles.doctorCard}>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=150&q=80' }}
-            style={styles.doctorAvatar}
-          />
-          <View style={styles.doctorInfo}>
-            <Text style={styles.doctorName}>Dr. Sarah Mitchell</Text>
-            <Text style={styles.doctorClinic}>City Heart Clinic • Room 4B</Text>
-          </View>
-          <Pressable style={styles.viewButton} onPress={()=>{router.push('/doctor-details')}}>
-            <Text style={styles.viewButtonText}>View</Text>
-          </Pressable>
-        </View>
-
-        {/* Live Updates */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Live Updates</Text>
-          <Text style={styles.lastUpdated}>Updated just now</Text>
-        </View>
-
-        <View style={styles.timelineCard}>
-          {updates.map((item, index) => (
-            <View key={item.id} style={styles.timelineItem}>
-              <View style={styles.timelineLeft}>
-                <View style={[styles.timelineDot, item.active && styles.timelineDotActive]} />
-                {index !== updates.length - 1 && <View style={styles.timelineLine} />}
+        {activeToken ? (
+          <>
+            {/* Pause Banner if Queue is Paused */}
+            {queueStatus === 'PAUSED' && (
+              <View style={{ backgroundColor: '#FEF2F2', borderColor: '#F87171', borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, color: '#B91C1C', fontWeight: '700', flex: 1 }}>
+                  ⏸️ Queue is Paused: {pauseReason || 'Doctor attending emergency case'}
+                </Text>
               </View>
-              <View style={styles.timelineContent}>
-                <Text style={[styles.timelineTitle, item.active && styles.timelineTitleActive]}>{item.title}</Text>
-                <Text style={styles.timelineSubtitle}>{item.subtitle}</Text>
+            )}
+
+            {/* Ticket Card */}
+            <View style={styles.ticketCard}>
+              <View style={styles.ticketHeader}>
+                <View style={[
+                  styles.servingBadge,
+                  tokenStatus === 'CALLED' ? { backgroundColor: '#FEF3C7', borderColor: '#F59E0B', borderWidth: 1 } :
+                  tokenStatus === 'SERVING' ? { backgroundColor: '#DCFCE7', borderColor: '#22C55E', borderWidth: 1 } :
+                  tokenStatus === 'SKIPPED' ? { backgroundColor: '#FEE2E2', borderColor: '#EF4444', borderWidth: 1 } : null
+                ]}>
+                  <View style={[
+                    styles.pulseDot,
+                    tokenStatus === 'CALLED' ? { backgroundColor: '#F59E0B' } :
+                    tokenStatus === 'SERVING' ? { backgroundColor: '#16A34A' } :
+                    tokenStatus === 'SKIPPED' ? { backgroundColor: '#DC2626' } : null
+                  ]} />
+                  <Text style={[
+                    styles.servingBadgeText,
+                    tokenStatus === 'CALLED' ? { color: '#B45309', fontWeight: '700' } :
+                    tokenStatus === 'SERVING' ? { color: '#15803D', fontWeight: '700' } :
+                    tokenStatus === 'SKIPPED' ? { color: '#B91C1C', fontWeight: '700' } : null
+                  ]}>
+                    {tokenStatus === 'CALLED' ? 'CALLED - ENTER ROOM NOW' :
+                     tokenStatus === 'SERVING' ? 'IN CONSULTATION' :
+                     tokenStatus === 'SKIPPED' ? 'TOKEN SKIPPED' : 'In Waiting Line'}
+                  </Text>
+                </View>
+                <View style={styles.myTokenBadge}>
+                  <Text style={styles.myTokenLabel}>MY TOKEN</Text>
+                  <Text style={styles.myTokenValue}>{activeToken.token}</Text>
+                </View>
+              </View>
+
+              <View style={styles.ticketBody}>
+                <Text style={styles.servingTokenLabel}>Currently in Consultation Room</Text>
+                <Text style={styles.servingTokenValue}>
+                  {liveCurrentToken && liveCurrentToken !== 'None' ? `Token #${liveCurrentToken}` : 'Doctor Ready / Calling Next'}
+                </Text>
+              </View>
+
+              {/* Dotted Divider */}
+              <View style={styles.dividerWrapper}>
+                <View style={styles.cutoutLeft} />
+                <View style={styles.dottedLine} />
+                <View style={styles.cutoutRight} />
+              </View>
+
+              <View style={styles.ticketFooter}>
+                <View style={styles.progressHeader}>
+                  <Text style={styles.progressTitle}>Queue Progress</Text>
+                  <Text style={styles.progressPercent}>
+                    {tokenStatus === 'SERVING' ? '100%' : tokenStatus === 'CALLED' ? '95%' : `${Math.min(90, Math.max(10, 100 - (currentAhead * 15)))}%`}
+                  </Text>
+                </View>
+                <View style={styles.progressBarBg}>
+                  <View 
+                    style={[
+                      styles.progressBarFill, 
+                      { width: tokenStatus === 'SERVING' ? '100%' : tokenStatus === 'CALLED' ? '95%' : `${Math.min(90, Math.max(10, 100 - (currentAhead * 15)))}%` }
+                    ]} 
+                  />
+                </View>
               </View>
             </View>
-          ))}
-        </View>
 
-        {/* Action Buttons */}
-        <Pressable style={styles.refreshButton}>
-          <RefreshIcon />
-          <Text style={styles.refreshButtonText}>Refresh Status</Text>
-        </Pressable>
+            {/* Stats Grid */}
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <View style={[styles.statIconBox, { backgroundColor: '#EEF2FF' }]}>
+                  <UsersIcon color="#4F46E5" />
+                </View>
+                <Text style={styles.statValue}>{currentAhead}</Text>
+                <Text style={styles.statLabel}>Ahead of you</Text>
+              </View>
+              
+              <View style={styles.statCard}>
+                <View style={[styles.statIconBox, { backgroundColor: '#FFF7ED' }]}>
+                  <ClockIcon color="#EA580C" />
+                </View>
+                <Text style={styles.statValue}>{currentAhead === 0 ? 'Now' : `~${waitMinutes}m`}</Text>
+                <Text style={styles.statLabel}>Est. wait time</Text>
+              </View>
 
-        <View style={styles.secondaryActionsRow}>
-          <Pressable style={styles.directionButton}>
-            <NavigateIcon />
-            <Text style={styles.directionButtonText}>Directions</Text>
-          </Pressable>
-          <Pressable style={styles.callButton}>
-            <CallIcon />
-            <Text style={styles.callButtonText}>Call Clinic</Text>
-          </Pressable>
-        </View>
+              <View style={styles.statCard}>
+                <View style={[styles.statIconBox, { backgroundColor: '#F0FDF4' }]}>
+                  <CalendarIcon color="#16A34A" />
+                </View>
+                <Text style={styles.statValue}>{tokenStatus === 'CALLED' ? 'NOW' : activeToken.expectedTime || '10:30'}</Text>
+                <Text style={styles.statLabel}>Expected time</Text>
+              </View>
+            </View>
+
+            {/* Doctor Info */}
+            <View style={styles.doctorCard}>
+              <Image
+                source={{ 
+                  uri: activeToken.image || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=150&q=80' 
+                }}
+                style={styles.doctorAvatar}
+              />
+              <View style={styles.doctorInfo}>
+                <Text style={styles.doctorName}>{activeToken.doctorName}</Text>
+                <Text style={styles.doctorClinic}>
+                  {activeToken.clinicName || 'Care Speciality Clinic'} • Consultation Room
+                </Text>
+              </View>
+              <Pressable 
+                style={styles.viewButton} 
+                onPress={() => {
+                  router.push({
+                    pathname: '/doctor-details',
+                    params: {
+                      id: activeToken.doctorId,
+                      name: activeToken.doctorName,
+                      clinicName: activeToken.clinicName,
+                      specialty: activeToken.specialty,
+                      fee: activeToken.fee,
+                      image: activeToken.image,
+                    }
+                  } as any);
+                }}
+              >
+                <Text style={styles.viewButtonText}>View</Text>
+              </Pressable>
+            </View>
+
+            {/* Live Updates */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Live Timeline</Text>
+              <Text style={styles.lastUpdated}>Synced with clinic desk</Text>
+            </View>
+
+            <View style={styles.timelineCard}>
+              {recentEvents.length > 0 ? (
+                recentEvents.map((evt, idx) => (
+                  <View key={evt.id || idx} style={styles.timelineItem}>
+                    <View style={styles.timelineLeft}>
+                      <View style={[styles.timelineDot, evt.active ? styles.timelineDotActive : null]} />
+                      {idx < recentEvents.length - 1 && <View style={styles.timelineLine} />}
+                    </View>
+                    <View style={styles.timelineContent}>
+                      <Text style={[styles.timelineTitle, evt.active ? styles.timelineTitleActive : null]}>
+                        {evt.title}
+                      </Text>
+                      <Text style={styles.timelineSubtitle}>{evt.subtitle}</Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <>
+                  <View style={styles.timelineItem}>
+                    <View style={styles.timelineLeft}>
+                      <View style={[styles.timelineDot, styles.timelineDotActive]} />
+                      <View style={styles.timelineLine} />
+                    </View>
+                    <View style={styles.timelineContent}>
+                      <Text style={[styles.timelineTitle, styles.timelineTitleActive]}>
+                        Token {activeToken.token} confirmed
+                      </Text>
+                      <Text style={styles.timelineSubtitle}>
+                        Patient: {activeToken.patientName} • {currentAhead === 0 ? 'Your turn is up!' : `${currentAhead} patients ahead`}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.timelineItem}>
+                    <View style={styles.timelineLeft}>
+                      <View style={styles.timelineDot} />
+                    </View>
+                    <View style={styles.timelineContent}>
+                      <Text style={styles.timelineTitle}>
+                        {liveCurrentToken !== 'None' ? `Room Active: Token #${liveCurrentToken} in room` : 'Practitioner ready for next token'}
+                      </Text>
+                      <Text style={styles.timelineSubtitle}>
+                        Estimated pace: ~10 mins per consultation
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+
+            {/* Action Buttons */}
+            <Pressable 
+              style={[styles.refreshButton, isRefreshing && { opacity: 0.7 }]} 
+              onPress={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshIcon />
+              <Text style={styles.refreshButtonText}>
+                {isRefreshing ? 'Checking clinic status...' : 'Refresh Status'}
+              </Text>
+            </Pressable>
+
+            <View style={styles.secondaryActionsRow}>
+              <Pressable 
+                style={[styles.directionButton, { flex: 1 }]}
+                onPress={() => router.push('/explore' as any)}
+              >
+                <NavigateIcon />
+                <Text style={styles.directionButtonText}>Find Clinics</Text>
+              </Pressable>
+              
+              <Pressable 
+                style={[styles.callButton, { flex: 1, backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', borderWidth: 1 }]}
+                onPress={handleCancelQueue}
+              >
+                <CallIcon />
+                <Text style={[styles.callButtonText, { color: '#DC2626' }]}>
+                  {isCancelling ? 'Cancelling...' : 'Cancel Token'}
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          /* Empty Queue State */
+          <View style={{ backgroundColor: '#ffffff', borderRadius: 20, padding: 28, alignItems: 'center', marginTop: 24, shadowColor: '#0052FF', shadowOpacity: 0.06, shadowRadius: 20, elevation: 4 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+              <UsersIcon color="#0052FF" />
+            </View>
+            <Text style={{ fontSize: 20, fontFamily: 'Outfit_700Bold', color: '#0F172A', marginBottom: 6, textAlign: 'center' }}>
+              No Active Queue Token
+            </Text>
+            <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20, marginBottom: 24 }}>
+              You do not have any pending consultation tokens right now. Explore available doctors and clinics to join a live queue.
+            </Text>
+            <Pressable 
+              style={[styles.refreshButton, { width: '100%', backgroundColor: '#0052FF' }]}
+              onPress={() => router.push('/explore' as any)}
+            >
+              <Text style={styles.refreshButtonText}>Browse Doctors & Join Queue</Text>
+            </Pressable>
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>

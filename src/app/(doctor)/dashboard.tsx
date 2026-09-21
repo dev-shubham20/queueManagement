@@ -12,21 +12,149 @@ import {
 } from 'react-native';
 import BottomTabBar from '../../components/BottomTabBar';
 import DashboardHeader from '../../components/DashboardHeader';
+import ReceptionistCommandCenter from '../../components/ReceptionistCommandCenter';
 import { MockDB, UserData } from '@/utils/storage';
+import { RemoteAPI } from '@/utils/api';
+import { SocketClient } from '@/utils/socket';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const [session, setSession] = useState<UserData | null>(null);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [activeQueue, setActiveQueue] = useState<any | null>(null);
+
+  const loadData = async () => {
+    try {
+      const sess = await MockDB.getCurrentSession();
+      setSession(sess);
+      const doctorId = sess?.doctorId || sess?.id || 'doc-1';
+
+      const res = await RemoteAPI.getDoctorActiveQueue(doctorId);
+      if (res && res.queue) {
+        setActiveQueue(res.queue);
+        if (Array.isArray(res.tokens)) {
+          setPatients(res.tokens.map((t: any) => ({
+            id: t._id || t.id,
+            tokenNumber: t.tokenNumber,
+            name: t.patientName,
+            phone: t.patientPhone,
+            condition: t.condition,
+            priority: t.priority,
+            status: t.status,
+            treatmentStatus: t.status === 'SERVING' ? 'IN_CONSULTATION' : t.status,
+            createdAt: t.createdAt,
+          })));
+          return;
+        }
+      }
+
+      const pats = await MockDB.getPatients();
+      setPatients(pats || []);
+    } catch (e) {
+      console.warn('Dashboard loadData error:', e);
+    }
+  };
 
   useEffect(() => {
-    MockDB.getCurrentSession().then(setSession);
+    loadData();
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
   }, []);
+
+  const queueId = activeQueue?.id || activeQueue?._id || (session ? `queue-${session.id || session.doctorId}` : 'queue-doc-1');
+
+  useEffect(() => {
+    if (!queueId) return;
+
+    SocketClient.joinQueue(queueId);
+
+    const unsubCreated = SocketClient.onTokenCreated(() => loadData());
+    const unsubCalled = SocketClient.onTokenCalled(() => loadData());
+    const unsubServing = SocketClient.onTokenServing(() => loadData());
+    const unsubCompleted = SocketClient.onTokenCompleted(() => loadData());
+    const unsubSkipped = SocketClient.onTokenSkipped(() => loadData());
+    const unsubCancelled = SocketClient.onTokenCancelled(() => loadData());
+    const unsubStatus = SocketClient.onQueueStatusChanged(() => loadData());
+
+    return () => {
+      unsubCreated();
+      unsubCalled();
+      unsubServing();
+      unsubCompleted();
+      unsubSkipped();
+      unsubCancelled();
+      unsubStatus();
+      SocketClient.leaveQueue(queueId);
+    };
+  }, [queueId]);
+
+  const currentlyServing = patients.find(p => p.status === 'SERVING' || p.treatmentStatus === 'IN_CONSULTATION') ||
+    patients.find(p => p.status === 'CALLED');
+
+  const waitingPatients = patients.filter(
+    p => (p.status === 'WAITING' || p.treatmentStatus === 'WAITING') && p.id !== currentlyServing?.id
+  );
+
+  const completedCount = activeQueue?.totalTokensCompleted ?? patients.filter(p => p.status === 'COMPLETED' || p.treatmentStatus === 'COMPLETED').length;
+  const waitingCount = waitingPatients.length;
+  const totalCount = activeQueue?.totalTokensIssued ?? (completedCount + waitingCount + (currentlyServing ? 1 : 0));
+
+  const handleCallNext = async () => {
+    try {
+      await RemoteAPI.callNextToken(queueId);
+      await loadData();
+    } catch (e) {
+      console.warn('Dashboard handleCallNext error:', e);
+    }
+  };
 
   const hasPermission = (perm: string) => {
     if (!session) return false;
     if (session.role === 'DOCTOR' || session.role === 'SUPER_ADMIN') return true;
     return session.permissions?.includes(perm) ?? false;
   };
+
+  const isReceptionistRole = session?.role === 'RECEPTIONIST' || session?.role === 'STAFF';
+  const [viewMode, setViewMode] = useState<'DOCTOR' | 'RECEPTIONIST'>('DOCTOR');
+
+  // If user is receptionist or staff, default to receptionist view mode
+  useEffect(() => {
+    if (isReceptionistRole) {
+      setViewMode('RECEPTIONIST');
+    }
+  }, [isReceptionistRole]);
+
+  if (session && (isReceptionistRole || viewMode === 'RECEPTIONIST')) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        {session.role === 'DOCTOR' && (
+          <View style={styles.modeSwitchBanner}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="desktop-outline" size={16} color="#1E40AF" style={{ marginRight: 6 }} />
+              <Text style={styles.modeSwitchBannerText}>Front-Desk Reception Mode Active</Text>
+            </View>
+            <Pressable
+              style={styles.modeSwitchBackBtn}
+              onPress={() => setViewMode('DOCTOR')}
+            >
+              <Ionicons name="arrow-back" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Text style={styles.modeSwitchBackBtnText}>Doctor View</Text>
+            </Pressable>
+          </View>
+        )}
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+          <ReceptionistCommandCenter
+            session={session}
+            onLogout={async () => {
+              await MockDB.clearSession();
+              router.replace('/(auth)/doctor-login');
+            }}
+          />
+        </ScrollView>
+        <BottomTabBar />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -38,20 +166,29 @@ export default function DashboardScreen() {
       />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* Top Context */}
-        <Text style={styles.sectionContextTitle}>PRACTITIONER DASHBOARD</Text>
+        {/* Top Context & Switch to Reception */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Text style={styles.sectionContextTitle}>PRACTITIONER DASHBOARD</Text>
+          <Pressable
+            style={styles.receptionSwitchBtn}
+            onPress={() => setViewMode('RECEPTIONIST')}
+          >
+            <Ionicons name="receipt-outline" size={14} color="#2563EB" style={{ marginRight: 4 }} />
+            <Text style={styles.receptionSwitchBtnText}>Front-Desk Console</Text>
+          </Pressable>
+        </View>
         
         <View style={styles.doctorSelector}>
           <View style={styles.doctorSelectorLeft}>
             <Ionicons name="medkit" size={18} color="#2563EB" />
-            <Text style={styles.doctorName}>Dr. Sarah Jenkins</Text>
+            <Text style={styles.doctorName}>{session?.name || 'Practitioner'}</Text>
           </View>
           <Ionicons name="chevron-down" size={18} color="#475569" />
         </View>
 
         <View style={styles.liveBadge}>
           <View style={styles.liveDot} />
-          <Text style={styles.liveText}>LIVE: Morning Session</Text>
+          <Text style={styles.liveText}>LIVE: Active Queue Session</Text>
         </View>
 
         {/* Currently Serving Card */}
@@ -62,16 +199,16 @@ export default function DashboardScreen() {
             <Text style={styles.servingTitle}>CURRENTLY SERVING</Text>
           </View>
           
-          <Text style={styles.servingToken}>GP-402</Text>
-          <Text style={styles.servingPatient}>Patient: Jonathan Henderson</Text>
+          <Text style={styles.servingToken}>{currentlyServing?.tokenNumber || '--'}</Text>
+          <Text style={styles.servingPatient}>Patient: {currentlyServing?.name || 'No active patient in room'}</Text>
 
           <View style={styles.actionRow}>
-            <Pressable style={styles.callNextButton}>
+            <Pressable style={styles.callNextButton} onPress={handleCallNext}>
               <Ionicons name="play-skip-forward" size={16} color="#FFFFFF" />
               <Text style={styles.callNextText}>Call Next</Text>
             </Pressable>
-            <Pressable style={styles.pauseButton}>
-              <Ionicons name="pause" size={18} color="#475569" />
+            <Pressable style={styles.pauseButton} onPress={() => router.push('/queue')}>
+              <Ionicons name="list" size={18} color="#475569" />
             </Pressable>
           </View>
         </View>
@@ -80,85 +217,87 @@ export default function DashboardScreen() {
         <View style={styles.statsGrid}>
           {/* Today's Patients */}
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Today's Patients</Text>
+            <Text style={styles.statLabel}>Total Patients</Text>
             <View style={styles.statValueRow}>
-              <Text style={styles.statValue}>42</Text>
+              <Text style={styles.statValue}>{totalCount}</Text>
               <Ionicons name="trending-up" size={16} color="#16A34A" style={{ marginLeft: 4 }} />
             </View>
           </View>
           
           {/* Waiting Patients */}
           <View style={[styles.statBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-            <Text style={[styles.statLabel, { color: '#1D4ED8' }]}>Waiting Patients</Text>
-            <Text style={[styles.statValue, { color: '#2563EB' }]}>08</Text>
+            <Text style={[styles.statLabel, { color: '#1D4ED8' }]}>Waiting Queue</Text>
+            <Text style={[styles.statValue, { color: '#2563EB' }]}>{String(waitingCount).padStart(2, '0')}</Text>
           </View>
 
           {/* Completed */}
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>Completed</Text>
-            <Text style={styles.statValue}>32</Text>
+            <Text style={styles.statValue}>{completedCount}</Text>
           </View>
 
-          {/* Missed/Skipped */}
+          {/* Active Serving */}
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Missed/Skipped</Text>
-            <Text style={[styles.statValue, { color: '#DC2626' }]}>02</Text>
+            <Text style={styles.statLabel}>In Treatment</Text>
+            <Text style={[styles.statValue, { color: '#16A34A' }]}>
+              {currentlyServing && currentlyServing.treatmentStatus === 'IN_CONSULTATION' ? '01' : '00'}
+            </Text>
           </View>
         </View>
 
         {/* Next in Queue */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitleBlack}>Next in Queue</Text>
-          <Text style={styles.viewAllText}>View All</Text>
+          <Pressable onPress={() => router.push('/queue')}>
+            <Text style={styles.viewAllText}>View All ({waitingPatients.length})</Text>
+          </Pressable>
         </View>
 
-        {/* Queue Item 1 */}
-        <Pressable style={styles.queueItem} onPress={() => router.push('/token-details')}>
-          <View style={[styles.tokenPill, { backgroundColor: '#EFF6FF' }]}>
-            <Text style={[styles.tokenPillText, { color: '#2563EB' }]}>GP-{'\n'}403</Text>
+        {waitingPatients.length === 0 ? (
+          <View style={{ padding: 16, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' }}>
+            <Text style={{ color: '#64748B', fontSize: 13 }}>No waiting patients in queue</Text>
           </View>
-          <View style={styles.queueInfo}>
-            <Text style={styles.queueName}>Clara Oswald</Text>
-            <Text style={styles.queueDetails}>General Checkup • 4 mins wait</Text>
-          </View>
-        </Pressable>
-
-        {/* Queue Item 2 */}
-        <Pressable style={styles.queueItem} onPress={() => router.push('/token-details')}>
-          <View style={styles.tokenPill}>
-            <Text style={styles.tokenPillText}>GP-{'\n'}404</Text>
-          </View>
-          <View style={styles.queueInfo}>
-            <Text style={styles.queueName}>Arthur Williams</Text>
-            <Text style={styles.queueDetails}>Follow-up • 12 mins wait</Text>
-          </View>
-        </Pressable>
-
-        {/* Queue Item 3 */}
-        <Pressable style={styles.queueItem} onPress={() => router.push('/token-details')}>
-          <View style={styles.tokenPill}>
-            <Text style={styles.tokenPillText}>GP-{'\n'}405</Text>
-          </View>
-          <View style={styles.queueInfo}>
-            <Text style={styles.queueName}>Martha Jones</Text>
-            <Text style={styles.queueDetails}>Vaccination • 18 mins wait</Text>
-          </View>
-        </Pressable>
+        ) : (
+          waitingPatients.slice(0, 3).map((pat, idx) => (
+            <Pressable key={pat.id} style={styles.queueItem} onPress={() => router.push('/token-details')}>
+              <View style={[styles.tokenPill, idx === 0 && { backgroundColor: '#EFF6FF' }]}>
+                <Text style={[styles.tokenPillText, idx === 0 && { color: '#2563EB' }]}>{pat.tokenNumber || `TK-${idx + 1}`}</Text>
+              </View>
+              <View style={styles.queueInfo}>
+                <Text style={styles.queueName}>{pat.name}</Text>
+                <Text style={styles.queueDetails}>{pat.condition || 'General'} • {(idx + 1) * 8} mins wait</Text>
+              </View>
+            </Pressable>
+          ))
+        )}
 
         {/* Operations */}
         <Text style={styles.operationsTitle}>OPERATIONS</Text>
         
         <View style={styles.operationsContainer}>
-          {/* Issue Manual Token */}
-          {/* <View style={styles.operationItem}>
+          {/* Switch to Front-Desk Reception Console */}
+          <Pressable style={styles.operationItem} onPress={() => setViewMode('RECEPTIONIST')}>
             <View style={[styles.opIconBox, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="add-circle" size={22} color="#2563EB" />
+              <Ionicons name="receipt" size={22} color="#2563EB" />
             </View>
             <View style={styles.opTextContent}>
-              <Text style={styles.opTitle}>Issue Manual Token</Text>
-              <Text style={styles.opSubtitle}>For walk-in patients</Text>
+              <Text style={styles.opTitle}>Reception Desk Flow</Text>
+              <Text style={styles.opSubtitle}>Search patients, issue tokens & manage queue</Text>
             </View>
-          </View> */}
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </Pressable>
+
+          {/* Issue Walk-in Patient */}
+          <Pressable style={styles.operationItem} onPress={() => router.push('/add-patient')}>
+            <View style={[styles.opIconBox, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="person-add" size={22} color="#059669" />
+            </View>
+            <View style={styles.opTextContent}>
+              <Text style={styles.opTitle}>Add Walk-in Patient</Text>
+              <Text style={styles.opSubtitle}>Issue regular token for walk-in</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </Pressable>
 
           {/* Priority Override */}
           {hasPermission('queue') && (
@@ -168,8 +307,9 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.opTextContent}>
                 <Text style={styles.opTitle}>Priority Override</Text>
-                <Text style={styles.opSubtitle}>Emergency insertion</Text>
+                <Text style={styles.opSubtitle}>Emergency insertion (EM-XX)</Text>
               </View>
+              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </Pressable>
           )}
 
@@ -183,6 +323,7 @@ export default function DashboardScreen() {
                 <Text style={styles.opTitle}>Session Logs</Text>
                 <Text style={styles.opSubtitle}>Review today's activity</Text>
               </View>
+              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </Pressable>
           )}
         </View>
@@ -489,5 +630,48 @@ const styles = StyleSheet.create({
   opSubtitle: {
     fontSize: 12,
     color: '#64748B',
+  },
+  modeSwitchBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#BFDBFE',
+  },
+  modeSwitchBannerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E40AF',
+  },
+  modeSwitchBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E40AF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  modeSwitchBackBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  receptionSwitchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  receptionSwitchBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563EB',
   },
 });

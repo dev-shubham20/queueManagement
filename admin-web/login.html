@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Super Admin Sign In • CareQueue Console</title>
+  <link rel="stylesheet" href="css/admin.css">
+  <style>
+    body {
+      background: radial-gradient(circle at 50% 20%, #1E1B4B 0%, #0F172A 70%, #020617 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: var(--font-primary);
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 460px;
+      animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .login-card {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 36px 32px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 0 0 40px rgba(79, 70, 229, 0.15);
+      color: #FFFFFF;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .login-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(129, 140, 248, 0.3);
+      border-radius: 999px;
+      color: #A5B4FC;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    .login-logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+    }
+
+    .login-title {
+      font-family: var(--font-heading);
+      font-size: 24px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 6px;
+    }
+
+    .login-subtitle {
+      font-size: 13px;
+      color: #94A3B8;
+      line-height: 1.5;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #CBD5E1;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 14px;
+      font-size: 16px;
+      color: #94A3B8;
+      pointer-events: none;
+    }
+
+    .login-input {
+      width: 100%;
+      height: 48px;
+      padding: 0 44px 0 42px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      color: #FFFFFF;
+      font-size: 14px;
+      font-family: var(--font-primary);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .login-input:focus {
+      border-color: #6366F1;
+      background: rgba(15, 23, 42, 0.85);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    }
+
+    .login-input::placeholder {
+      color: #64748B;
+    }
+
+    .toggle-pwd {
+      position: absolute;
+      right: 14px;
+      background: none;
+      border: none;
+      color: #94A3B8;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+    }
+
+    .toggle-pwd:hover {
+      color: #FFFFFF;
+    }
+
+    .quick-creds {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px dashed rgba(129, 140, 248, 0.3);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .quick-creds-info {
+      font-size: 12px;
+      color: #C7D2FE;
+    }
+
+    .quick-creds-info strong {
+      color: #FFFFFF;
+      font-family: monospace;
+    }
+
+    .btn-fill {
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(129, 140, 248, 0.4);
+      color: #A5B4FC;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-fill:hover {
+      background: #4F46E5;
+      color: #FFFFFF;
+    }
+
+    .btn-submit {
+      width: 100%;
+      height: 48px;
+      background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-submit:hover {
+      background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.5);
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .alert-box {
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      animation: shake 0.3s ease;
+    }
+
+    .alert-error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #FCA5A5;
+    }
+
+    .alert-success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6EE7B7;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 11px;
+      color: #64748B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #FFFFFF;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">🛡️</div>
+        <div class="login-badge">★ RESTRICTED MASTER CONSOLE</div>
+        <h1 class="login-title">Super Admin Sign In</h1>
+        <p class="login-subtitle">Master management cockpit for doctors, patients, and platform queue controls.</p>
+      </div>
+
+      <!-- Error / Success Alert -->
+      <div class="alert-box alert-error" id="alert-error">
+        <span>⚠️</span>
+        <span id="alert-error-text">Invalid username or password.</span>
+      </div>
+
+      <!-- Quick Auto-Fill helper -->
+      <div class="quick-creds">
+        <div class="quick-creds-info">
+          Master Account: <strong>dev.shubhamagrawal@gmail.com</strong>
+        </div>
+        <button type="button" class="btn-fill" id="btn-autofill" onclick="autoFillMaster()">Auto-Fill</button>
+      </div>
+
+      <form id="admin-login-form" onsubmit="handleLogin(event)">
+        <!-- Username/Email Input -->
+        <div class="form-group">
+          <label class="form-label" for="username">Username or Email</label>
+          <div class="input-box">
+            <span class="input-icon">👤</span>
+            <input
+              type="text"
+              id="username"
+              class="login-input"
+              placeholder="e.g. dev.shubhamagrawal@gmail.com"
+              required
+              autocomplete="username"
+            />
+          </div>
+        </div>
+
+        <!-- Password Input -->
+        <div class="form-group">
+          <label class="form-label" for="password">Master Password</label>
+          <div class="input-box">
+            <span class="input-icon">🔒</span>
+            <input
+              type="password"
+              id="password"
+              class="login-input"
+              placeholder="••••••••••••"
+              required
+              autocomplete="current-password"
+            />
+            <button type="button" class="toggle-pwd" onclick="togglePasswordVisibility()" title="Show/Hide Password">
+              <span id="pwd-icon">👁️</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn-submit" id="btn-login">
+          <span id="btn-text">Sign In to Super Admin</span>
+          <span id="btn-spinner" class="spinner" style="display: none;"></span>
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <span>🔒 256-Bit TLS Security</span>
+        <span>•</span>
+        <span>MongoDB Atlas Protected</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // If already authenticated as SUPER_ADMIN, redirect to dashboard
+    (function checkExistingSession() {
+      const token = localStorage.getItem('superadmin_token');
+      const user = localStorage.getItem('superadmin_user');
+      if (token && user) {
+        try {
+          const parsed = JSON.parse(user);
+          if (parsed.role === 'SUPER_ADMIN' || parsed.role === 'super_admin') {
+            window.location.href = 'index.html';
+          }
+        } catch (e) {}
+      }
+    })();
+
+    function togglePasswordVisibility() {
+      const pwdInput = document.getElementById('password');
+      const icon = document.getElementById('pwd-icon');
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        icon.textContent = '🙈';
+      } else {
+        pwdInput.type = 'password';
+        icon.textContent = '👁️';
+      }
+    }
+
+    function autoFillMaster() {
+      document.getElementById('username').value = 'dev.shubhamagrawal@gmail.com';
+      document.getElementById('password').value = '$hubh@Achuki23';
+      hideError();
+    }
+
+    function showError(msg) {
+      const alert = document.getElementById('alert-error');
+      const text = document.getElementById('alert-error-text');
+      text.textContent = msg;
+      alert.style.display = 'flex';
+    }
+
+    function hideError() {
+      const alert = document.getElementById('alert-error');
+      alert.style.display = 'none';
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      hideError();
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.getElementById('btn-login');
+      const btnText = document.getElementById('btn-text');
+      const btnSpinner = document.getElementById('btn-spinner');
+
+      if (!username || !password) {
+        showError('Please enter both username/email and password.');
+        return;
+      }
+
+      btn.disabled = true;
+      btnText.textContent = 'Authenticating...';
+      btnSpinner.style.display = 'inline-block';
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Authentication failed');
+        }
+
+        // Save session
+        localStorage.setItem('superadmin_token', data.token);
+        localStorage.setItem('superadmin_user', JSON.stringify(data.user));
+
+        btnText.textContent = 'Access Granted ✓';
+        btnSpinner.style.display = 'none';
+
+        // Redirect to Super Admin Console
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 500);
+      } catch (err) {
+        showError(err.message || 'Invalid username or password');
+        btn.disabled = false;
+        btnText.textContent = 'Sign In to Super Admin';
+        btnSpinner.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>

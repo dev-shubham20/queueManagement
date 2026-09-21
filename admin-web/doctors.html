@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doctors & Clinics Directory • CareQueue Super Admin</title>
+  <link rel="stylesheet" href="css/admin.css">
+  <script src="js/auth.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">🛡️</div>
+        <div>
+          <div class="brand-title">CareQueue</div>
+          <div class="brand-badge">★ OWNER CONSOLE</div>
+        </div>
+      </div>
+
+      <div class="nav-section-title">Navigation</div>
+      <ul class="nav-list">
+        <li class="nav-item">
+          <a href="index.html">
+            <span class="nav-icon">📊</span>
+            <span>Executive Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item active">
+          <a href="doctors.html">
+            <span class="nav-icon">🩺</span>
+            <span>Doctors</span>
+            <span class="nav-badge" id="sidebar-doc-count">...</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="patients.html">
+            <span class="nav-icon">👥</span>
+            <span>Patients Directory</span>
+            <span class="nav-badge" id="sidebar-pat-count">...</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="sync-status">
+          <div class="sync-dot"></div>
+          <span>LIVE SYNC ACTIVE</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+      <!-- Top Navbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Doctor Management & Oversight</h1>
+          <p class="page-subtitle">Oversight of registered doctors, consultation queues, & active/deactive controls</p>
+        </div>
+
+        <div class="topbar-right">
+          <div class="owner-profile">
+            <div class="owner-avatar">👑</div>
+            <div class="owner-meta">
+              <span class="owner-name">Platform Owner</span>
+              <span class="owner-role">SUPER ADMIN</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Body Content -->
+      <div class="page-body">
+        <!-- Quick Summary Metrics Bar -->
+        <div class="stats-grid" style="margin-bottom: 20px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+          <div class="stat-card" style="padding: 16px;">
+            <div class="stat-value" id="doc-stat-total" style="font-size: 26px;">0</div>
+            <div class="stat-label">Total Registered</div>
+          </div>
+          <div class="stat-card" style="padding: 16px; border-left: 4px solid #F59E0B; background-color: #FFFBEB;">
+            <div class="stat-value" id="doc-stat-pending" style="font-size: 26px; color: #D97706;">0</div>
+            <div class="stat-label" style="color: #92400E; font-weight: 700;">Pending Approvals</div>
+          </div>
+          <div class="stat-card" style="padding: 16px;">
+            <div class="stat-value" id="doc-stat-active" style="font-size: 26px; color: #059669;">0</div>
+            <div class="stat-label">Active Doctors</div>
+          </div>
+          <div class="stat-card" style="padding: 16px;">
+            <div class="stat-value" id="doc-stat-suspended" style="font-size: 26px; color: #7C3AED;">0</div>
+            <div class="stat-label">Suspended Providers</div>
+          </div>
+          <div class="stat-card" style="padding: 16px;">
+            <div class="stat-value" id="doc-stat-deactivated" style="font-size: 26px; color: #DC2626;">0</div>
+            <div class="stat-label">Deactivated Doctors</div>
+          </div>
+          <div class="stat-card" style="padding: 16px;">
+            <div class="stat-value" id="doc-stat-treating" style="font-size: 26px; color: #2563EB;">0</div>
+            <div class="stat-label">Patients In Care</div>
+          </div>
+        </div>
+
+        <!-- Filter & Search Controls Bar -->
+        <div class="filter-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="doctor-search"
+              class="search-input"
+              placeholder="Search by doctor name, practice, license #, city, phone..."
+            />
+          </div>
+
+          <div class="filter-chips">
+            <button class="filter-chip active" data-filter="ALL">
+              All Doctors <span class="filter-badge" id="badge-all">0</span>
+            </button>
+            <button class="filter-chip" data-filter="PENDING" id="chip-pending" style="border-color: #F59E0B; background-color: #FFFBEB;">
+              ⏳ Pending Approvals <span class="filter-badge" id="badge-pending" style="background-color: #F59E0B; color: #fff;">0</span>
+            </button>
+            <button class="filter-chip" data-filter="ACTIVE">
+              Active Doctors <span class="filter-badge" id="badge-active">0</span>
+            </button>
+            <button class="filter-chip" data-filter="SUSPENDED" style="border-color: #7C3AED;">
+              🚫 Suspended <span class="filter-badge" id="badge-suspended" style="background-color: #7C3AED; color: #fff;">0</span>
+            </button>
+            <button class="filter-chip" data-filter="DEACTIVATED">
+              Deactivated <span class="filter-badge" id="badge-deactivated">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Doctors Table -->
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Doctor Name</th>
+                <th>Practice / Chamber</th>
+                <th>Patients Treating</th>
+                <th>Queue</th>
+                <th>Treated</th>
+                <th>Location / Fee</th>
+                <th>Approval / Status</th>
+                <th>Super Admin Action</th>
+              </tr>
+            </thead>
+            <tbody id="doctors-tbody">
+              <!-- Dynamically populated -->
+              <tr>
+                <td colspan="8" style="text-align: center; padding: 32px; color: var(--text-muted);">
+                  Loading registered doctors and clinics...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal: Review Practitioner Registration -->
+  <div class="modal-backdrop" id="review-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>📋 Doctor Application Review</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeReviewModal()">✕</button>
+      </div>
+      <div class="modal-body" id="review-modal-content">
+        <!-- Dynamically injected -->
+      </div>
+      <div class="modal-footer" id="review-modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closeReviewModal()">Close</button>
+        <button class="btn btn-reject btn-sm" id="btn-modal-reject" onclick="openRejectDialogFromModal()">✕ Reject Application</button>
+        <button class="btn btn-approve btn-sm" id="btn-modal-approve" onclick="confirmApproveFromModal()">✓ Approve & Activate Doctor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Reject Application Reason Dialog -->
+  <div class="modal-backdrop" id="reject-modal">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header" style="background-color: #FEF2F2; border-bottom-color: #FECACA;">
+        <div class="modal-title" style="color: #991B1B;">
+          <span>⚠️ Reject Doctor Registration</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeRejectModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+          Please state the reason for rejecting <strong id="reject-doctor-name" style="color: var(--text-primary);"></strong>. This feedback will be displayed immediately in the doctor's mobile application so they can fix their details and resubmit:
+        </p>
+        <textarea
+          id="reject-reason-input"
+          class="reason-textarea"
+          placeholder="e.g. Please provide valid Medical Council Registration Certificate, clinic address proof, and complete qualifications..."
+        ></textarea>
+        <div id="reject-error-msg" style="color: #EF4444; font-size: 12px; font-weight: 600; margin-top: 6px; display: none;">
+          Please enter a rejection reason before confirming.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closeRejectModal()">Cancel</button>
+        <button class="btn btn-reject btn-sm" onclick="submitRejection()">Confirm Rejection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/api.js"></script>
+  <script src="js/doctors.js"></script>
+</body>
+</html>

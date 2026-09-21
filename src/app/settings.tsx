@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
 import BottomTabBar from '../components/BottomTabBar';
@@ -211,7 +211,10 @@ export default function SettingsScreen() {
         {/* Privacy & Security */}
         <Text style={styles.sectionTitle}>Privacy & Security</Text>
         <View style={styles.cardGroup}>
-          <Pressable style={styles.cardRow}>
+          <Pressable 
+            style={styles.cardRow}
+            onPress={() => router.push('/privacy-policy' as any)}
+          >
             <View style={styles.iconContainer}>
               <ShieldIcon />
             </View>
@@ -221,17 +224,10 @@ export default function SettingsScreen() {
           </Pressable>
           <View style={styles.divider} />
 
-          <Pressable style={styles.cardRow}>
-            <View style={styles.iconContainer}>
-              <LockIcon />
-            </View>
-            <Text style={styles.rowText}>Data Security</Text>
-            <View style={{ flex: 1 }} />
-            <ChevronRightIcon />
-          </Pressable>
-          <View style={styles.divider} />
-
-          <Pressable style={styles.cardRow}>
+          <Pressable 
+            style={styles.cardRow}
+            onPress={() => router.push('/terms-of-service' as any)}
+          >
             <View style={styles.iconContainer}>
               <DocumentIcon />
             </View>
@@ -270,6 +266,20 @@ export default function SettingsScreen() {
             </View>
             <Text style={styles.rowText}>About Smart Clinic</Text>
             <View style={{ flex: 1 }} />
+            <ChevronRightIcon />
+          </Pressable>
+        </View>
+
+        {/* Administration */}
+        <Text style={styles.sectionTitle}>Administration</Text>
+        <View style={styles.cardGroup}>
+          <Pressable style={styles.cardRow} onPress={() => Linking.openURL('http://localhost:5001')}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="shield-checkmark" size={22} color="#7C3AED" />
+            </View>
+            <Text style={[styles.rowText, { color: '#7C3AED', fontFamily: 'Inter_600SemiBold' }]}>Super Admin Web Console</Text>
+            <View style={{ flex: 1 }} />
+            <Text style={[styles.valueText, { color: '#7C3AED', fontSize: 12 }]}>Open Web App</Text>
             <ChevronRightIcon />
           </Pressable>
         </View>

@@ -21,18 +21,39 @@ export default function ProfileScreen() {
   // --- State Variables ---
 
   // Doctor Info
-  const [fullName, setFullName] = useState('Dr. Sarah Jenkins');
-  const [mobileNumber, setMobileNumber] = useState('9876543210');
-  const [email, setEmail] = useState('sarah.jenkins@clinicflow.com');
-  const [regNumber, setRegNumber] = useState('MD-8472910');
+  const [fullName, setFullName] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [regNumber, setRegNumber] = useState('');
 
   // Clinic Info
-  const [clinicName, setClinicName] = useState('CarePlus Medical Center');
-  const [clinicAddress, setClinicAddress] = useState('123 Health Ave, Medical District');
-  const [contactNumber, setContactNumber] = useState('9876543210');
-  const [whatsappNumber, setWhatsappNumber] = useState('9876543210');
+  const [clinicName, setClinicName] = useState('');
+  const [clinicAddress, setClinicAddress] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [consultationFee, setConsultationFee] = useState('500');
   const [payAtClinic, setPayAtClinic] = useState(true);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const { MockDB } = await import('@/utils/storage');
+        const session = await MockDB.getCurrentSession();
+        if (session) {
+          if (session.name) setFullName(session.name);
+          if (session.phone) {
+            setMobileNumber(session.phone);
+            setContactNumber(session.phone);
+            setWhatsappNumber(session.phone);
+          }
+          if (session.email) setEmail(session.email);
+          if (session.clinicName) setClinicName(session.clinicName);
+        }
+      } catch (e) {
+        console.error('Error loading session in profile:', e);
+      }
+    })();
+  }, []);
 
   // Working Hours & Setup
   const [morningSession, setMorningSession] = useState(true);

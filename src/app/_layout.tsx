@@ -74,6 +74,8 @@ export default function RootLayout() {
         <Stack.Screen name="(doctor)" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="help-support" />
+        <Stack.Screen name="privacy-policy" />
+        <Stack.Screen name="terms-of-service" />
       </Stack>
     </ThemeProvider>
   );

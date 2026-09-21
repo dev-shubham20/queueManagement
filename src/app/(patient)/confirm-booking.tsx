@@ -79,12 +79,15 @@ export default function ConfirmBookingScreen() {
   const params = useLocalSearchParams();
   const dateOptions = useMemo(() => buildDateOptions(), []);
 
-  const name = (params.name as string) || 'Dr. Sarah Mitchell';
-  const specialty = (params.specialty as string) || 'General GP • Cardiology Specialist';
+  const doctorId = (params.doctorId as string) || (params.id as string) || '';
+  const name = (params.name as string) || 'Practitioner';
+  const clinicName = (params.clinicName as string) || '';
+  const specialty = (params.specialty as string) || 'Specialist Consultation';
   const image =
     (params.image as string) ||
     'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=200&q=80';
-  const fee = (params.fee as string) || '$100';
+  const fee = (params.fee as string) || '₹500';
+  const waitingQueueCount = (params.waitingQueueCount as string) || '0';
 
   const [selectedDateKey, setSelectedDateKey] = useState(dateOptions[1]?.key ?? dateOptions[0].key);
   const [session, setSession] = useState<Session>('morning');
@@ -108,10 +111,13 @@ export default function ConfirmBookingScreen() {
     router.push({
       pathname: '/review-booking',
       params: {
+        doctorId,
         name,
+        clinicName,
         specialty,
         image,
         fee,
+        waitingQueueCount,
         appointmentDate: formatAppointmentDate(selectedDateKey),
         session,
         familyMember,

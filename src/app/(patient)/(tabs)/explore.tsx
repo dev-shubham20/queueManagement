@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
-import { StyleSheet, ScrollView, View, Pressable, Platform, TextInput, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { DoctorRecord, MockDB } from '@/utils/storage';
+import { Image } from 'expo-image';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, Dimensions, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+
+const DOCTOR_AVATARS: Record<string, string> = {};
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=200&q=80';
 
 // SVG Icons matching reference screen
 const SearchIcon = ({ size = 18, color = '#90949C' }) => (
@@ -41,65 +45,58 @@ export default function TabExploreScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('Filter');
+  const [doctors, setDoctors] = useState<DoctorRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const filterOptions = ['Filter', 'Distance', 'Fee: Low-High'];
 
-  const doctorsList = [
-    {
-      name: 'Dr. Alistair Vance',
-      specialty: 'Cardiologist • St. Jude Hospital',
-      distance: '1.2 km',
-      fee: '$75',
-      image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=200&q=80',
-      badgeType: 'LIVE_QUEUE',
-      badgeText: 'LIVE QUEUE',
-      queueInfo: '3 patients ahead',
-      buttonText: 'Book Now',
-      isHighlighted: true,
-    },
-    {
-      name: 'Dr. Elena Rodriguez',
-      specialty: 'Pediatrician • City Health Center',
-      distance: '2.8 km',
-      fee: '$50',
-      image: 'https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&w=200&q=80',
-      badgeType: 'WAIT_TIME',
-      badgeText: 'WAIT TIME',
-      queueInfo: '5 min wait',
-      buttonText: 'Book Now',
-      isHighlighted: false,
-    },
-    {
-      name: 'Dr. Marcus Chen',
-      specialty: 'Dermatologist • SkinCare Elite',
-      distance: '4.1 km',
-      fee: '$90',
-      image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=200&q=80',
-      badgeType: 'LIVE_QUEUE',
-      badgeText: 'LIVE QUEUE',
-      queueInfo: '1 patient ahead',
-      buttonText: 'Book Now',
-      isHighlighted: false,
-    },
-    {
-      name: 'Dr. Sarah Jenkins',
-      specialty: 'Neurologist • Westside Clinic',
-      distance: '5.5 km',
-      fee: '$120',
-      image: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&w=200&q=80',
-      badgeType: 'NEXT_TIME',
-      badgeText: 'NEXT: 2:00 PM',
-      queueInfo: 'Currently in surgery',
-      buttonText: 'Waitlist',
-      isHighlighted: false,
-    },
-  ];
+  const loadDoctors = async () => {
+    try {
+      const all = await MockDB.getDoctors();
+      // Show only ACTIVE practitioners in patient app
+      setDoctors(all.filter(d => d.status === 'ACTIVE'));
+    } catch (err) {
+      console.error('Failed to load doctors', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadDoctors();
+    }, [])
+  );
+
+  const displayedDoctors = useMemo(() => {
+    let list = [...doctors];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(d =>
+        d.name.toLowerCase().includes(q) ||
+        (d.clinicName && d.clinicName.toLowerCase().includes(q)) ||
+        d.specialization.toLowerCase().includes(q) ||
+        (d.city && d.city.toLowerCase().includes(q))
+      );
+    }
+
+    if (selectedFilter === 'Fee: Low-High') {
+      list.sort((a, b) => {
+        const feeA = Number.parseFloat((a.consultationFee || '500').replace(/[^0-9.]/g, '')) || 0;
+        const feeB = Number.parseFloat((b.consultationFee || '500').replace(/[^0-9.]/g, '')) || 0;
+        return feeA - feeB;
+      });
+    } else if (selectedFilter === 'Distance') {
+      // Mock distance sorting
+      list.sort((a, b) => (a.waitingQueueCount || 0) - (b.waitingQueueCount || 0));
+    }
+
+    return list;
+  }, [doctors, searchQuery, selectedFilter]);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-        
-
 
         {/* Search Input */}
         <View style={styles.searchSection}>
@@ -108,7 +105,7 @@ export default function TabExploreScreen() {
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search doctors or specialties"
+              placeholder="Search doctors, clinics or specialties"
               placeholderTextColor="#90949C"
               style={styles.searchInput}
             />
@@ -152,109 +149,119 @@ export default function TabExploreScreen() {
 
         {/* Available Doctors Section Title */}
         <View style={styles.resultsHeader}>
-          <ThemedText style={styles.resultsTitle}>Available Doctors</ThemedText>
-          <ThemedText style={styles.resultsSub}>Based on your current location</ThemedText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <ThemedText style={styles.resultsTitle}>Available Doctors ({displayedDoctors.length})</ThemedText>
+            {loading && <ActivityIndicator size="small" color="#0052FF" />}
+          </View>
+          <ThemedText style={styles.resultsSub}>Verified & active practitioners open for consultations</ThemedText>
         </View>
 
         {/* Doctor List Cards */}
         <View style={styles.doctorsList}>
-          {doctorsList.map((doc, idx) => (
-            <Pressable 
-              key={idx} 
-              onPress={() => router.push({
-                pathname: '/doctor-details',
-                params: {
-                  name: doc.name,
-                  specialty: doc.specialty,
-                  image: doc.image,
-                  fee: doc.fee,
-                }
-              } as any)}
-              style={[
-                styles.doctorCard,
-                doc.isHighlighted ? styles.doctorCardHighlighted : styles.doctorCardDefault
-              ]}
-            >
-              {/* Doctor Avatar */}
-              <Image source={{ uri: doc.image }} style={styles.doctorAvatar} />
+          {displayedDoctors.length === 0 && !loading ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginVertical: 8 }}>
+              <ThemedText style={{ fontSize: 16, fontWeight: '700', color: '#1A1C1F' }}>No Doctors Found</ThemedText>
+              <ThemedText style={{ fontSize: 13, color: '#90949C', marginTop: 4 }}>Try adjusting your search terms or filters</ThemedText>
+            </View>
+          ) : (
+            displayedDoctors.map((doc, idx) => {
+              const avatarUrl = DOCTOR_AVATARS[doc.name] || DEFAULT_AVATAR;
+              const hasQueue = (doc.waitingQueueCount || 0) > 0;
+              const specialtySubtitle = doc.clinicName 
+                ? `${doc.specialization} • ${doc.clinicName}`
+                : doc.specialization;
+              const isFirst = idx === 0;
 
-              {/* Info Column */}
-              <View style={styles.doctorInfo}>
-                {/* Distance and Name Row */}
-                <View style={styles.doctorNameRow}>
-                  <ThemedText style={styles.doctorName} numberOfLines={1}>{doc.name}</ThemedText>
-                  <ThemedText style={styles.distanceText}>{doc.distance}</ThemedText>
-                </View>
+              return (
+                <Pressable 
+                  key={doc.id || idx} 
+                  onPress={() => router.push({
+                    pathname: '/doctor-details',
+                    params: {
+                      id: doc.id,
+                      name: doc.name,
+                      specialty: specialtySubtitle,
+                      clinicName: doc.clinicName || '',
+                      image: avatarUrl,
+                      fee: doc.consultationFee || '₹500',
+                      waitingQueueCount: String(doc.waitingQueueCount || 0),
+                      experience: doc.experience || '8 years',
+                      rating: String(doc.rating || 4.8),
+                    }
+                  } as any)}
+                  style={[
+                    styles.doctorCard,
+                    isFirst ? styles.doctorCardHighlighted : styles.doctorCardDefault
+                  ]}
+                >
+                  {/* Doctor Avatar */}
+                  <Image source={{ uri: avatarUrl }} style={styles.doctorAvatar} />
 
-                {/* Specialty (in Brand Blue color) */}
-                <ThemedText style={styles.doctorSpecialty} numberOfLines={1}>{doc.specialty}</ThemedText>
-
-                {/* Status indicator row */}
-                <View style={styles.queueStatusRow}>
-                  {doc.badgeType === 'LIVE_QUEUE' && (
-                    <View style={styles.liveQueueBadge}>
-                      <View style={styles.liveDot} />
-                      <ThemedText style={styles.liveQueueText}>{doc.badgeText}</ThemedText>
+                  {/* Info Column */}
+                  <View style={styles.doctorInfo}>
+                    {/* Distance and Name Row */}
+                    <View style={styles.doctorNameRow}>
+                      <ThemedText style={styles.doctorName} numberOfLines={1}>{doc.name}</ThemedText>
+                      <ThemedText style={styles.distanceText}>{doc.city || 'Nearby'}</ThemedText>
                     </View>
-                  )}
 
-                  {doc.badgeType === 'WAIT_TIME' && (
-                    <View style={styles.waitTimeBadge}>
-                      <ClockIcon size={12} color="#60646C" />
-                      <ThemedText style={styles.waitTimeBadgeText}>{doc.badgeText}</ThemedText>
+                    {/* Specialty */}
+                    <ThemedText style={styles.doctorSpecialty} numberOfLines={1}>{specialtySubtitle}</ThemedText>
+
+                    {/* Status indicator row */}
+                    <View style={styles.queueStatusRow}>
+                      {hasQueue ? (
+                        <View style={styles.liveQueueBadge}>
+                          <View style={styles.liveDot} />
+                          <ThemedText style={styles.liveQueueText}>LIVE QUEUE</ThemedText>
+                        </View>
+                      ) : (
+                        <View style={styles.waitTimeBadge}>
+                          <ClockIcon size={12} color="#60646C" />
+                          <ThemedText style={styles.waitTimeBadgeText}>OPEN NOW</ThemedText>
+                        </View>
+                      )}
+
+                      <ThemedText style={styles.queueInfoText}>
+                        {hasQueue ? `${doc.waitingQueueCount} waiting (~${queueWaitMin}m wait)` : 'No wait time'}
+                      </ThemedText>
                     </View>
-                  )}
 
-                  {doc.badgeType === 'NEXT_TIME' && (
-                    <View style={styles.nextTimeBadge}>
-                      <CalendarIcon size={12} color="#60646C" />
-                      <ThemedText style={styles.nextTimeBadgeText}>{doc.badgeText}</ThemedText>
+                    {/* Consult Fee & Call-to-action button */}
+                    <View style={styles.cardBottomRow}>
+                      <View style={styles.feeGroup}>
+                        <ThemedText style={styles.feeAmount}>{doc.consultationFee || '₹500'}</ThemedText>
+                        <ThemedText style={styles.feeLabel}> / consult</ThemedText>
+                      </View>
+                      
+                      <Pressable 
+                        style={[styles.actionButton, styles.bookButton]}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          router.push({
+                            pathname: '/confirm-booking',
+                            params: {
+                              doctorId: doc.id,
+                              name: doc.name,
+                              specialty: specialtySubtitle,
+                              clinicName: doc.clinicName || '',
+                              image: avatarUrl,
+                              fee: doc.consultationFee || '₹500',
+                              waitingQueueCount: String(doc.waitingQueueCount || 0),
+                            }
+                          } as any);
+                        }}
+                      >
+                        <ThemedText style={[styles.actionButtonText, styles.bookButtonText]}>
+                          Book Now
+                        </ThemedText>
+                      </Pressable>
                     </View>
-                  )}
-
-                  <ThemedText style={styles.queueInfoText}>{doc.queueInfo}</ThemedText>
-                </View>
-
-                {/* Consult Fee & Call-to-action button */}
-                <View style={styles.cardBottomRow}>
-                  <View style={styles.feeGroup}>
-                    <ThemedText style={styles.feeAmount}>{doc.fee}</ThemedText>
-                    <ThemedText style={styles.feeLabel}> / consult</ThemedText>
                   </View>
-                  
-                  <Pressable 
-                    style={[
-                      styles.actionButton,
-                      doc.buttonText === 'Waitlist' ? styles.waitlistButton : styles.bookButton
-                    ]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      if (doc.buttonText === 'Book Now') {
-                        router.push({
-                          pathname: '/confirm-booking',
-                          params: {
-                            name: doc.name,
-                            image: doc.image,
-                            specialty: doc.specialty,
-                            fee: doc.fee,
-                          }
-                        } as any);
-                      }
-                    }}
-                  >
-                    <ThemedText 
-                      style={[
-                        styles.actionButtonText,
-                        doc.buttonText === 'Waitlist' ? styles.waitlistButtonText : styles.bookButtonText
-                      ]}
-                    >
-                      {doc.buttonText}
-                    </ThemedText>
-                  </Pressable>
-                </View>
-              </View>
-            </Pressable>
-          ))}
+                </Pressable>
+              );
+            })
+          )}
         </View>
 
         {/* Smart Match Banner */}

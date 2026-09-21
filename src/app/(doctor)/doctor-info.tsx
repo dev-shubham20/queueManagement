@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { MockDB } from '@/utils/storage';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -21,6 +22,23 @@ export default function DoctorInfoScreen() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [regNumber, setRegNumber] = useState('');
+
+  useEffect(() => {
+    async function loadInitial() {
+      const draft = await MockDB.getRegistrationDraft();
+      const session = await MockDB.getCurrentSession();
+      if (draft) {
+        if (draft.name) setFullName(draft.name);
+        if (draft.phone) setPhone(draft.phone);
+        if (draft.email) setEmail(draft.email);
+        if (draft.licenseNumber) setRegNumber(draft.licenseNumber);
+      } else if (session) {
+        if (session.name) setFullName(session.name);
+        if (session.phone) setPhone(session.phone);
+      }
+    }
+    loadInitial();
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -161,7 +179,19 @@ export default function DoctorInfoScreen() {
             </View>
 
             {/* Continue Button */}
-            <Pressable style={styles.button} onPress={() => router.push('/clinic-info')}>
+            <Pressable
+              style={styles.button}
+              onPress={async () => {
+                await MockDB.saveRegistrationDraft({
+                  name: fullName.trim() || 'Dr. Practitioner',
+                  phone: phone.trim() || '9876543210',
+                  email: email.trim(),
+                  licenseNumber: regNumber.trim(),
+                  type: 'INDIVIDUAL',
+                });
+                router.push('/clinic-info');
+              }}
+            >
               <Text style={styles.buttonText}>Continue</Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
             </Pressable>

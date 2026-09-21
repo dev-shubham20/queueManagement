@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareQueue • Super Admin Console</title>
+  <link rel="stylesheet" href="css/admin.css">
+  <script src="js/auth.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">🛡️</div>
+        <div>
+          <div class="brand-title">CareQueue</div>
+          <div class="brand-badge">★ OWNER CONSOLE</div>
+        </div>
+      </div>
+
+      <div class="nav-section-title">Navigation</div>
+      <ul class="nav-list">
+        <li class="nav-item active">
+          <a href="index.html">
+            <span class="nav-icon">📊</span>
+            <span>Executive Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="doctors.html">
+            <span class="nav-icon">🩺</span>
+            <span>Doctors</span>
+            <span class="nav-badge" id="sidebar-doc-count">...</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="patients.html">
+            <span class="nav-icon">👥</span>
+            <span>Patients Directory</span>
+            <span class="nav-badge" id="sidebar-pat-count">...</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="sync-status">
+          <div class="sync-dot"></div>
+          <span>LIVE SYNC ACTIVE</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+      <!-- Top Navbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Executive Command Center</h1>
+          <p class="page-subtitle">Real-time platform overview of registered doctors & patients</p>
+        </div>
+
+        <div class="topbar-right">
+          <div class="owner-profile">
+            <div class="owner-avatar">👑</div>
+            <div class="owner-meta">
+              <span class="owner-name">Platform Owner</span>
+              <span class="owner-role">SUPER ADMIN</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Body Content -->
+      <div class="page-body">
+        <!-- Notice if any Pending Approvals -->
+        <div class="notice-banner" id="pending-banner" style="display: none; background-color: #FFFBEB; border-color: #FDE68A;">
+          <div class="notice-content">
+            <span style="font-size: 18px;">⏳</span>
+            <span id="pending-banner-text" style="color: #92400E; font-weight: 700;">New Doctor Registrations: 0 doctor profile(s) awaiting Super Admin review.</span>
+          </div>
+          <a href="doctors.html?filter=PENDING" class="notice-btn" style="background-color: #D97706; color: #fff;">Review Approvals</a>
+        </div>
+
+        <!-- Notice if any deactivated -->
+        <div class="notice-banner" id="deactivated-banner" style="display: none;">
+          <div class="notice-content">
+            <span>⚠️</span>
+            <span id="deactivated-banner-text">Attention: Accounts are currently deactivated.</span>
+          </div>
+          <a href="doctors.html?status=DEACTIVATED" class="notice-btn">Review Doctors</a>
+        </div>
+
+        <!-- KPI Hero Cards Grid -->
+        <section class="stats-grid">
+          <!-- Card 1: Total Registered Doctors -->
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon" style="background-color: #EEF2FF; color: #4F46E5;">🩺</div>
+              <span class="stat-badge" id="active-doc-badge" style="background-color: #DCFCE7; color: #15803D;">Active</span>
+            </div>
+            <div class="stat-value" id="kpi-total-doctors">0</div>
+            <div class="stat-label">Registered Doctors</div>
+            <div class="stat-desc" id="kpi-doc-breakdown">Active: 0 • Pending: 0</div>
+          </div>
+
+          <!-- Card 2: Patients Currently Being Treated -->
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon" style="background-color: #ECFDF5; color: #059669;">🩺</div>
+              <span class="stat-badge" style="background-color: #D1FAE5; color: #047857;">● LIVE IN-CARE</span>
+            </div>
+            <div class="stat-value" id="kpi-treating-patients" style="color: #059669;">0</div>
+            <div class="stat-label">Patients Currently Treating</div>
+            <div class="stat-desc" id="kpi-queue-count">+ 0 patients waiting in queues</div>
+          </div>
+
+          <!-- Card 3: Total Registered Patients -->
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon" style="background-color: #E0F2FE; color: #0284C7;">👥</div>
+              <span class="stat-badge" style="background-color: #F0F9FF; color: #0369A1;">REGISTERED</span>
+            </div>
+            <div class="stat-value" id="kpi-total-patients">0</div>
+            <div class="stat-label">Total Registered Patients</div>
+            <div class="stat-desc" id="kpi-completed-count">0 completed consultations</div>
+          </div>
+
+          <!-- Card 4: Active Practice Ratio -->
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon" style="background-color: #FAF5FF; color: #7C3AED;">⚡</div>
+              <span class="stat-badge" style="background-color: #F3E8FF; color: #6D28D9;">DOCTORS</span>
+            </div>
+            <div class="stat-value" id="kpi-active-ratio">100%</div>
+            <div class="stat-label">Platform Active Status</div>
+            <div class="stat-desc" id="kpi-deactivated-count">0 deactivated accounts</div>
+          </div>
+        </section>
+
+        <!-- Split Grid: Breakdown & Live Queue Stream -->
+        <div class="grid-2col">
+          <!-- Left: Doctor Verification & Platform Status -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">Doctor Verification & Status</h2>
+                <p class="card-subtitle">Active Practitioners vs Pending Super Admin Review</p>
+              </div>
+            </div>
+
+            <!-- Visual Bar -->
+            <div class="ratio-progress">
+              <div class="ratio-bar-individual" id="ratio-bar-act" style="width: 100%; background-color: #10B981;"></div>
+              <div class="ratio-bar-clinic" id="ratio-bar-pnd" style="width: 0%; background-color: #F59E0B;"></div>
+            </div>
+
+            <div class="ratio-legend">
+              <div class="legend-item">
+                <div class="legend-dot" style="background-color: #10B981;"></div>
+                <div>
+                  <div class="legend-title">Active Doctors</div>
+                  <div class="legend-val" id="legend-act-count">0 (0%)</div>
+                </div>
+              </div>
+
+              <div class="legend-item">
+                <div class="legend-dot" style="background-color: #F59E0B;"></div>
+                <div>
+                  <div class="legend-title">Pending Review</div>
+                  <div class="legend-val" id="legend-pnd-count">0 (0%)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Patients Live Care & Consultation Feed -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">Live Patients In Consultation</h2>
+                <p class="card-subtitle">Patients actively being attended to right now across doctor practices</p>
+              </div>
+              <a href="patients.html" class="btn btn-outline btn-sm">View Directory →</a>
+            </div>
+
+            <div class="patient-stream-list" id="in-consultation-list">
+              <!-- Dynamically populated -->
+              <p style="color: var(--text-muted); font-size: 13px;">Loading live stream...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Action Doctor Management Table -->
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Doctor Accounts & Platform Status</h2>
+              <p class="card-subtitle">Toggle any doctor active/deactive in real-time. Changes sync immediately with mobile app.</p>
+            </div>
+            <a href="doctors.html" class="btn btn-primary btn-sm">Manage All Doctors →</a>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Doctor</th>
+                  <th>Practice / Chamber</th>
+                  <th>Treating Now</th>
+                  <th>Queue Size</th>
+                  <th>Total Treated</th>
+                  <th>Status</th>
+                  <th>Action Toggle</th>
+                </tr>
+              </thead>
+              <tbody id="quick-doctors-tbody">
+                <!-- Dynamically populated -->
+                <tr>
+                  <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading practices...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Platform,
   SafeAreaView,
@@ -8,31 +8,57 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
+  ActivityIndicator,
 } from 'react-native';
 import BottomTabBar from '../../components/BottomTabBar';
 import DashboardHeader from '../../components/DashboardHeader';
+import { MockDB, PatientRecord } from '@/utils/storage';
+import { RemoteAPI } from '@/utils/api';
 
 export default function PatientsListScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [patients, setPatients] = useState<PatientRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock patient data for the same day
-  const patients = [
-    { id: '1', name: 'Jonathan Henderson', age: 34, time: '09:00 AM', condition: 'Consultation', session: 'morning', token: '402' },
-    { id: '2', name: 'Clara Oswald', age: 28, time: '10:30 AM', condition: 'General Checkup', session: 'morning', token: '403' },
-    { id: '3', name: 'Arthur Williams', age: 45, time: '11:45 AM', condition: 'Follow-up', session: 'morning', token: '404' },
-    { id: '4', name: 'Martha Jones', age: 31, time: '02:15 PM', condition: 'Vaccination', session: 'evening', token: '405' },
-    { id: '5', name: 'Eleanor Shellstrop', age: 33, time: '03:30 PM', condition: 'Checkup', session: 'evening', token: '406' },
-    { id: '6', name: 'Chidi Anagonye', age: 35, time: '05:00 PM', condition: 'Consultation', session: 'evening', token: '407' },
-  ];
+  const loadPatients = useCallback(async () => {
+    try {
+      // Prioritize live backend API with authenticated JWT scoping
+      const remoteData = await RemoteAPI.getPatients();
+      if (Array.isArray(remoteData) && remoteData.length > 0) {
+        setPatients(remoteData);
+        return;
+      }
+      // Offline fallback if remote API returns empty or offline
+      const localData = await MockDB.getPatients();
+      setPatients(localData || []);
+    } catch {
+      try {
+        const localData = await MockDB.getPatients();
+        setPatients(localData || []);
+      } catch {
+        // Fallback handled
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPatients();
+    const interval = setInterval(loadPatients, 4000);
+    return () => clearInterval(interval);
+  }, [loadPatients]);
 
   const filteredPatients = patients.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (p.name && p.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (p.condition && p.condition.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (p.tokenNumber && p.tokenNumber.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const morningPatients = filteredPatients.filter(p => p.session === 'morning');
-  const eveningPatients = filteredPatients.filter(p => p.session === 'evening');
+  const activeOrWaiting = filteredPatients.filter(p => p.treatmentStatus === 'WAITING' || p.treatmentStatus === 'IN_CONSULTATION');
+  const completedOrPast = filteredPatients.filter(p => p.treatmentStatus === 'COMPLETED' || p.treatmentStatus === 'REGISTERED');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -50,67 +76,85 @@ export default function PatientsListScreen() {
         />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      {loading && patients.length === 0 ? (
+        <View style={{ padding: 40, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={{ marginTop: 12, color: '#64748B' }}>Loading patient database...</Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-        {morningPatients.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>MORNING SESSION ({morningPatients.length})</Text>
-            <View style={styles.listContainer}>
-              {morningPatients.map((patient, index) => (
-                <View
-                  key={patient.id}
-                  style={[
-                    styles.patientListItem,
-                    index === morningPatients.length - 1 && { borderBottomWidth: 0 }
-                  ]}
-                >
-                  <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarText}>{patient.token}</Text>
+          {activeOrWaiting.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>ACTIVE & WAITING QUEUE ({activeOrWaiting.length})</Text>
+              <View style={styles.listContainer}>
+                {activeOrWaiting.map((patient, index) => (
+                  <View
+                    key={patient.id}
+                    style={[
+                      styles.patientListItem,
+                      index === activeOrWaiting.length - 1 && { borderBottomWidth: 0 }
+                    ]}
+                  >
+                    <View style={[styles.avatarCircle, patient.treatmentStatus === 'IN_CONSULTATION' && { backgroundColor: '#DCFCE7' }]}>
+                      <Text style={[styles.avatarText, patient.treatmentStatus === 'IN_CONSULTATION' && { color: '#16A34A' }]}>
+                        {patient.tokenNumber || 'TK'}
+                      </Text>
+                    </View>
+                    <View style={styles.patientInfo}>
+                      <Text style={styles.patientName}>{patient.name}</Text>
+                      <Text style={styles.patientDetails}>Age: {patient.age} • {patient.condition || 'General'}</Text>
+                    </View>
+                    <View style={styles.timeContainer}>
+                      <Text style={styles.timeLabel}>Status</Text>
+                      <Text style={[
+                        styles.timeText,
+                        patient.treatmentStatus === 'IN_CONSULTATION' ? { color: '#16A34A' } : { color: '#2563EB' }
+                      ]}>
+                        {patient.treatmentStatus === 'IN_CONSULTATION' ? 'Serving' : 'Waiting'}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.patientInfo}>
-                    <Text style={styles.patientName}>{patient.name}</Text>
-                    <Text style={styles.patientDetails}>Age: {patient.age} • {patient.condition}</Text>
-                  </View>
-                  <View style={styles.timeContainer}>
-                    <Text style={styles.timeLabel}>Time</Text>
-                    <Text style={styles.timeText}>{patient.time}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
+                ))}
+              </View>
+            </>
+          )}
 
-        {eveningPatients.length > 0 && (
-          <>
-            <Text style={[styles.sectionTitle, { marginTop: 8 }]}>EVENING SESSION ({eveningPatients.length})</Text>
-            <View style={styles.listContainer}>
-              {eveningPatients.map((patient, index) => (
-                <View
-                  key={patient.id}
-                  style={[
-                    styles.patientListItem,
-                    index === eveningPatients.length - 1 && { borderBottomWidth: 0 }
-                  ]}
-                >
-                  <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarText}>{patient.token}</Text>
+          {completedOrPast.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, { marginTop: 8 }]}>COMPLETED & REGISTERED ({completedOrPast.length})</Text>
+              <View style={styles.listContainer}>
+                {completedOrPast.map((patient, index) => (
+                  <View
+                    key={patient.id}
+                    style={[
+                      styles.patientListItem,
+                      index === completedOrPast.length - 1 && { borderBottomWidth: 0 }
+                    ]}
+                  >
+                    <View style={[styles.avatarCircle, { backgroundColor: '#F1F5F9' }]}>
+                      <Text style={[styles.avatarText, { color: '#64748B' }]}>
+                        {patient.tokenNumber || 'TK'}
+                      </Text>
+                    </View>
+                    <View style={styles.patientInfo}>
+                      <Text style={styles.patientName}>{patient.name}</Text>
+                      <Text style={styles.patientDetails}>Age: {patient.age} • {patient.condition || 'General'}</Text>
+                    </View>
+                    <View style={styles.timeContainer}>
+                      <Text style={styles.timeLabel}>Status</Text>
+                      <Text style={[styles.timeText, { color: '#64748B' }]}>
+                        {patient.treatmentStatus}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.patientInfo}>
-                    <Text style={styles.patientName}>{patient.name}</Text>
-                    <Text style={styles.patientDetails}>Age: {patient.age} • {patient.condition}</Text>
-                  </View>
-                  <View style={styles.timeContainer}>
-                    <Text style={styles.timeLabel}>Time</Text>
-                    <Text style={styles.timeText}>{patient.time}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
+                ))}
+              </View>
+            </>
+          )}
 
-      </ScrollView>
+        </ScrollView>
+      )}
 
       {/* Common Bottom Tab Bar */}
       <BottomTabBar />

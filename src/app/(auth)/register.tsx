@@ -14,14 +14,9 @@ import {
 
 export default function SelectAccountTypeScreen() {
   const router = useRouter();
-  const [selectedType, setSelectedType] = useState<'individual' | 'clinic' | null>(null);
 
   const handleContinue = () => {
-    if (selectedType === 'individual') {
-      router.push('/doctor-info');
-    } else if (selectedType === 'clinic') {
-      router.push('/owner-info');
-    }
+    router.push('/doctor-info');
   };
 
   return (
@@ -50,90 +45,52 @@ export default function SelectAccountTypeScreen() {
               CareQueue
             </Text>
             <Text style={[styles.brand, { color: '#111827', fontWeight: '400', marginLeft: 4 }]}>
-              Clinic
+              Practice
             </Text>
           </View>
         </View>
 
-        <Text style={styles.title}>Select Account Type</Text>
+        <Text style={styles.title}>Doctor Registration</Text>
         <Text style={styles.subtitle}>
-          Choose the option that best describes your practice.{'\n'}
-          You can always upgrade or add more later.
+          Create your digital practice, manage patient queues, and consult effortlessly.
         </Text>
 
         <View style={styles.cardsContainer}>
-          {/* Individual Doctor */}
+          {/* Individual Doctor Practice Card */}
           <Pressable
             style={[
               styles.card,
               styles.cardBlue,
-              selectedType === 'individual' ? styles.cardSelectedBlue : null
+              styles.cardSelectedBlue
             ]}
-            onPress={() => setSelectedType('individual')}
+            onPress={handleContinue}
           >
             <View style={styles.cardHeader}>
               <View style={styles.iconCircleBlue}>
-                <Ionicons name="person" size={20} color="#2563EB" />
+                <Ionicons name="person" size={22} color="#2563EB" />
               </View>
-              <View style={[styles.radio, styles.radioBlue, selectedType === 'individual' ? styles.radioSelectedBlue : null]}>
-                {selectedType === 'individual' && <View style={styles.radioInnerSelectedBlue} />}
+              <View style={[styles.radio, styles.radioBlue, styles.radioSelectedBlue]}>
+                <View style={styles.radioInnerSelectedBlue} />
               </View>
             </View>
 
-            {/* Placeholder for Illustration */}
+            {/* Illustration */}
             <View style={styles.illustrationPlaceholder}>
-              <Ionicons name="medkit" size={60} color="#DBEAFE" />
+              <Ionicons name="medkit" size={68} color="#DBEAFE" />
             </View>
 
-            <Text style={styles.cardTitleBlue}>Individual Doctor</Text>
+            <Text style={styles.cardTitleBlue}>Doctor & Practice Account</Text>
             <Text style={styles.cardSubtitle}>
-              For doctors managing their own clinic and queue.
+              For doctors managing their own consultation chambers, appointments, and live patient queue.
             </Text>
 
             <View style={styles.divider} />
 
             <View style={styles.featureList}>
-              <FeatureItem text="One doctor" color="#2563EB" />
-              <FeatureItem text="Single queue" color="#2563EB" />
-              <FeatureItem text="Add staff later" color="#2563EB" />
-            </View>
-          </Pressable>
-
-          {/* Clinic / Hospital */}
-          <Pressable
-            style={[
-              styles.card,
-              styles.cardGreen,
-              selectedType === 'clinic' ? styles.cardSelectedGreen : null
-            ]}
-            onPress={() => setSelectedType('clinic')}
-          >
-            <View style={styles.cardHeader}>
-              <View style={styles.iconCircleGreen}>
-                <Ionicons name="business" size={20} color="#16A34A" />
-              </View>
-              <View style={[styles.radio, styles.radioGreen, selectedType === 'clinic' ? styles.radioSelectedGreen : null]}>
-                {selectedType === 'clinic' && <View style={styles.radioInnerSelectedGreen} />}
-              </View>
-            </View>
-
-            {/* Placeholder for Illustration */}
-            <View style={styles.illustrationPlaceholder}>
-              <Ionicons name="business-outline" size={60} color="#DCFCE7" />
-            </View>
-
-            <Text style={styles.cardTitleGreen}>Clinic / Hospital</Text>
-            <Text style={styles.cardSubtitle}>
-              For clinics or hospitals with multiple doctors.
-            </Text>
-
-            <View style={styles.divider} />
-
-            <View style={styles.featureList}>
-              <FeatureItem text="Multiple doctors" color="#16A34A" />
-              <FeatureItem text="Separate queue for each doctor" color="#16A34A" />
-              <FeatureItem text="Manage receptionists & staff" color="#16A34A" />
-              <FeatureItem text="Centralized management" color="#16A34A" />
+              <FeatureItem text="Personalized doctor queue & live token stream" color="#2563EB" />
+              <FeatureItem text="Single queue with call, attend & hold controls" color="#2563EB" />
+              <FeatureItem text="Add receptionists & front-desk staff anytime" color="#2563EB" />
+              <FeatureItem text="Dynamic walk-in & online patient booking" color="#2563EB" />
             </View>
           </Pressable>
         </View>
@@ -154,11 +111,10 @@ export default function SelectAccountTypeScreen() {
 
       <View style={styles.footer}>
         <Pressable
-          style={[styles.button, !selectedType && styles.buttonDisabled]}
-          disabled={!selectedType}
+          style={styles.button}
           onPress={handleContinue}
         >
-          <Text style={styles.buttonText}>Continue</Text>
+          <Text style={styles.buttonText}>Continue to Doctor Setup</Text>
           <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
         </Pressable>
       </View>

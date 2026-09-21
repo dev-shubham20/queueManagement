@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -24,7 +25,7 @@ const ArrowRightIcon = ({ size = 14, color = '#ffffff' }) => (
   </Svg>
 );
 
-const notifications = [
+const DEFAULT_NOTIFICATIONS = [
   {
     id: '1',
     title: "It's your Turn",
@@ -57,7 +58,7 @@ const notifications = [
   },
 ];
 
-function NotificationItem({ item }: { item: typeof notifications[number] }) {
+function NotificationItem({ item }: { item: typeof DEFAULT_NOTIFICATIONS[number] }) {
   const hasAction = Boolean(item.button);
 
   return (
@@ -88,6 +89,27 @@ function NotificationItem({ item }: { item: typeof notifications[number] }) {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const [items, setItems] = useState<any[]>(DEFAULT_NOTIFICATIONS);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { RemoteAPI } = await import('@/utils/api');
+        const live = await RemoteAPI.getNotifications();
+        if (live && live.length > 0) {
+          const formatted = live.map((n: any) => ({
+            id: n.id || n._id,
+            title: n.title,
+            subtitle: n.subtitle,
+            time: 'Live',
+            accent: n.type === 'SUCCESS' ? '#EFF7EE' : n.type === 'DELAY' ? '#FEF2F2' : '#E5EDFF',
+            button: n.type === 'CALL' ? 'Check In at Reception' : undefined,
+          }));
+          setItems([...formatted, ...DEFAULT_NOTIFICATIONS]);
+        }
+      } catch {}
+    })();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -104,17 +126,14 @@ export default function NotificationsScreen() {
           <ThemedText style={styles.screenSubtitle}>Real-time status of your appointment</ThemedText>
         </View>
         <View style={styles.titleActions}>
-          <Pressable style={styles.clearButton}>
+          <Pressable style={styles.clearButton} onPress={() => setItems([])}>
             <ThemedText style={styles.clearText}>Clear All</ThemedText>
           </Pressable>
-          {/* <Pressable style={styles.settingsButton}>
-            <SettingsIcon />
-          </Pressable> */}
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {notifications.map((item) => (
+        {items.map((item) => (
           <NotificationItem key={item.id} item={item} />
         ))}
       </ScrollView>
