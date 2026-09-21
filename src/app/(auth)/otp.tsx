@@ -212,7 +212,7 @@ export default function OTPVerificationScreen() {
       } else {
         await MockDB.setCurrentSession(user);
         if (user.role === 'SUPER_ADMIN') {
-          Linking.openURL('http://localhost:5001');
+          Linking.openURL('https://queuemanagement-api.onrender.com/superadmin');
           router.replace('/(patient)/(tabs)/home');
         } else if (user.role === 'DOCTOR' || user.role === 'CLINIC') {
           if (user.status === 'PENDING' || user.status === 'REJECTED') {

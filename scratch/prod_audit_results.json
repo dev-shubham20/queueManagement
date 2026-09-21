@@ -1,0 +1,128 @@
+[
+  {
+    "section": "API & MongoDB",
+    "testName": "API Connectivity & Stats Endpoint",
+    "status": "PASS",
+    "details": "HTTP 200, totalDoctors: 1, totalPatients: 5"
+  },
+  {
+    "section": "API & MongoDB",
+    "testName": "MongoDB Atlas Doctors Collection",
+    "status": "PASS",
+    "details": "Retrieved 1 doctors from MongoDB Atlas. Selected Doc: Shubham (ID: 6aa53cf616118abca33969e3)"
+  },
+  {
+    "section": "Patient Flow",
+    "testName": "Patient Registration",
+    "status": "PASS",
+    "details": "Patient registered successfully with phone: 9818976315"
+  },
+  {
+    "section": "Patient Flow",
+    "testName": "Patient OTP Login",
+    "status": "PASS",
+    "details": "Authenticated token issued for 9818976315"
+  },
+  {
+    "section": "Patient Flow",
+    "testName": "Book Regular Token (TK-XX)",
+    "status": "PASS",
+    "details": "Token booked: TK-04 (Mongo ID: 6ab0f0798e3e5f77c2e440b5)"
+  },
+  {
+    "section": "Patient Flow",
+    "testName": "View Live Token Details & Queue Position",
+    "status": "PASS",
+    "details": "Live token verified: TK-04, status: WAITING, posAhead: 0"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "Doctor Login",
+    "status": "PASS",
+    "details": "Doctor logged in (Shubham)"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "View Doctor Active Queue",
+    "status": "PASS",
+    "details": "Active queue retrieved (Mongo ID: 6ab0eeb58e3e5f77c2e440ab, Total issued: 4)"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "Call Next Patient (WAITING -> CALLED)",
+    "status": "PASS",
+    "details": "Called token: TK-04 (Audit Patient 6315)"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "Serve Patient (CALLED -> SERVING)",
+    "status": "PASS",
+    "details": "Patient consultation started (Status: SERVING)"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "Complete Token (SERVING -> COMPLETED)",
+    "status": "PASS",
+    "details": "Consultation marked completed"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "Pause & Resume Queue Management",
+    "status": "PASS",
+    "details": "Successfully paused and resumed queue"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Doctor Authorizes Receptionist Account",
+    "status": "PASS",
+    "details": "Receptionist created with phone 9821765941"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Receptionist Portal Login",
+    "status": "PASS",
+    "details": "Receptionist authenticated with role RECEPTIONIST"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Search Patient by Phone",
+    "status": "PASS",
+    "details": "Patient found: Audit Patient 6315"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Create Walk-in Patient Inline",
+    "status": "PASS",
+    "details": "Created walk-in patient 9835837250"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Issue Emergency Token (EM-XX, Priority 0)",
+    "status": "PASS",
+    "details": "Emergency Token issued: EM-01"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Cancel Token with Staff Permission",
+    "status": "FAIL",
+    "details": "Token cancelled by front-desk"
+  },
+  {
+    "section": "Super Admin",
+    "testName": "Super Admin Login",
+    "status": "FAIL",
+    "details": "Super Admin authenticated successfully"
+  },
+  {
+    "section": "Socket.IO Real-Time",
+    "testName": "WebSocket Connection & Channel Subscription",
+    "status": "PASS",
+    "details": "Connected with JWT auth and joined queue channel queue:6ab0eeb58e3e5f77c2e440ab"
+  },
+  {
+    "section": "Socket.IO Real-Time",
+    "testName": "Real-Time Event Broadcast (No Screen Refresh)",
+    "status": "PASS",
+    "details": "Live events pushed via WebSocket stream on state changes"
+  }
+]

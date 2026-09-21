@@ -1,0 +1,146 @@
+[
+  {
+    "section": "Production API",
+    "testName": "API Stats Response",
+    "status": "PASS",
+    "details": "HTTP 200, doctors: 1, patients: 9"
+  },
+  {
+    "section": "MongoDB Atlas",
+    "testName": "Doctors Collection Query",
+    "status": "PASS",
+    "details": "Fetched 1 approved doctors from MongoDB Atlas (Shubham)"
+  },
+  {
+    "section": "Patient Flow",
+    "testName": "Patient Registration",
+    "status": "PASS",
+    "details": "Registered phone: 9719387561"
+  },
+  {
+    "section": "Patient Flow",
+    "testName": "Patient OTP Login",
+    "status": "PASS",
+    "details": "JWT issued for patient 9719387561"
+  },
+  {
+    "section": "Patient Flow",
+    "testName": "Book Regular Token (TK-XX)",
+    "status": "PASS",
+    "details": "Token: TK-06"
+  },
+  {
+    "section": "Patient Flow",
+    "testName": "View Live Token Details & Queue Position",
+    "status": "PASS",
+    "details": "Tracked token: TK-06, Position Ahead: 1"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "Doctor Login",
+    "status": "PASS",
+    "details": "Doctor logged in (Shubham)"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "View Active Queue",
+    "status": "PASS",
+    "details": "Active queue: 6ab0eeb58e3e5f77c2e440ab"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "Call Next Patient",
+    "status": "PASS",
+    "details": "Called: TK-05"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "Serve Patient",
+    "status": "PASS",
+    "details": "Status transitioned to SERVING"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "Complete Consultation",
+    "status": "PASS",
+    "details": "Status transitioned to COMPLETED"
+  },
+  {
+    "section": "Doctor Flow",
+    "testName": "Pause & Resume Queue",
+    "status": "PASS",
+    "details": "Queue paused and resumed with persistence in MongoDB"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Doctor Authorizes Receptionist",
+    "status": "PASS",
+    "details": "Authorized receptionist: 9722915616"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Receptionist Portal Login",
+    "status": "PASS",
+    "details": "Authenticated with role RECEPTIONIST"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Search Patient by Phone",
+    "status": "PASS",
+    "details": "Found patient: Live Audit Patient"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Issue Emergency Token (EM-XX, Priority 0)",
+    "status": "PASS",
+    "details": "Issued: EM-03"
+  },
+  {
+    "section": "Receptionist Flow",
+    "testName": "Cancel Token with Staff Permissions",
+    "status": "PASS",
+    "details": "Token cancelled by receptionist"
+  },
+  {
+    "section": "Super Admin",
+    "testName": "Super Admin Login",
+    "status": "PASS",
+    "details": "Super Admin authenticated (Role: SUPER_ADMIN)"
+  },
+  {
+    "section": "Super Admin",
+    "testName": "View Pending Providers List",
+    "status": "PASS",
+    "details": "Retrieved pending queue (0 pending)"
+  },
+  {
+    "section": "RBAC & Security",
+    "testName": "RBAC: Block Patient from Admin Routes",
+    "status": "PASS",
+    "details": "Patient unauthorized access blocked with HTTP 403"
+  },
+  {
+    "section": "Socket.IO",
+    "testName": "WebSocket Connection & Channel Subscription",
+    "status": "PASS",
+    "details": "Connected with JWT and subscribed to queue:6ab0eeb58e3e5f77c2e440ab"
+  },
+  {
+    "section": "Socket.IO",
+    "testName": "Real-Time Event Broadcast (Zero Manual Refresh)",
+    "status": "PASS",
+    "details": "State change events received in real time"
+  },
+  {
+    "section": "RBAC & Security",
+    "testName": "Zero Secret Leakage in Client",
+    "status": "PASS",
+    "details": "No MONGODB_URI or JWT_SECRET embedded in mobile client"
+  },
+  {
+    "section": "No Localhost",
+    "testName": "Production URL Enforcement",
+    "status": "PASS",
+    "details": "Mobile client defaults exclusively to https://queuemanagement-api.onrender.com"
+  }
+]

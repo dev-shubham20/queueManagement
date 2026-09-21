@@ -273,7 +273,7 @@ export default function SettingsScreen() {
         {/* Administration */}
         <Text style={styles.sectionTitle}>Administration</Text>
         <View style={styles.cardGroup}>
-          <Pressable style={styles.cardRow} onPress={() => Linking.openURL('http://localhost:5001')}>
+          <Pressable style={styles.cardRow} onPress={() => Linking.openURL('https://queuemanagement-api.onrender.com/superadmin')}>
             <View style={styles.iconContainer}>
               <Ionicons name="shield-checkmark" size={22} color="#7C3AED" />
             </View>

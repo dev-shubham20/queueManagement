@@ -115,6 +115,27 @@ export const SocketClient = {
     };
   },
 
+  joinPatient(phone: string) {
+    this.joinPatientAlerts(phone);
+  },
+
+  on(eventName: string, callback: (...args: any[]) => void) {
+    const socket = getSocket();
+    socket.on(eventName, callback);
+    return () => {
+      socket.off(eventName, callback);
+    };
+  },
+
+  off(eventName: string, callback?: (...args: any[]) => void) {
+    const socket = getSocket();
+    if (callback) {
+      socket.off(eventName, callback);
+    } else {
+      socket.off(eventName);
+    }
+  },
+
   connect(explicitToken?: string) {
     const socket = getSocket(explicitToken);
     if (explicitToken) {

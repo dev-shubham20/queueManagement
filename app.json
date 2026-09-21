@@ -42,6 +42,7 @@
       "reactCompiler": true
     },
     "extra": {
+      "apiUrl": "https://queuemanagement-api.onrender.com",
       "router": {},
       "eas": {
         "projectId": "690d1dda-ef2c-47d7-b263-48a3c5d85087"

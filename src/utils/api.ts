@@ -2,25 +2,19 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { DoctorRecord, PatientRecord, AdminStats, Storage } from './storage';
 
-// Determine the best API base URL depending on platform
+// Live Render Production Backend URL
+export const PRODUCTION_API_URL = 'https://queuemanagement-api.onrender.com';
+
+// Determine the best API base URL depending on platform & environment
 function getApiBaseUrl(): string {
-  if (Platform.OS === 'web') {
-    return 'http://localhost:5001';
+  // Use explicit environment override if provided via Expo Constants extra
+  const customUrl = Constants.expoConfig?.extra?.apiUrl;
+  if (customUrl) {
+    return customUrl;
   }
 
-  // If running on a physical phone with Expo Go or Android emulator
-  const debuggerHost = Constants.expoConfig?.hostUri;
-  if (debuggerHost) {
-    const ip = debuggerHost.split(':')[0];
-    return `http://${ip}:5001`;
-  }
-
-  // Android emulator loopback fallback
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5001';
-  }
-
-  return 'http://localhost:5001';
+  // Default to live production Render backend for all mobile (Android/iOS) and web clients
+  return PRODUCTION_API_URL;
 }
 
 export const API_BASE_URL = getApiBaseUrl();
@@ -582,21 +576,6 @@ export const RemoteAPI = {
     }
   },
 
-  async updatePatientStatus(id: string, treatmentStatus: string) {
-    try {
-      const headers = await this.getHeaders();
-      const res = await fetch(`${API_BASE_URL}/api/patients/${id}/status`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ treatmentStatus }),
-      });
-      if (!res.ok) return null;
-      return await res.json();
-    } catch {
-      return null;
-    }
-  },
-
   async getQueue(queueId: string) {
     try {
       const headers = await this.getHeaders();
@@ -609,7 +588,7 @@ export const RemoteAPI = {
   },
 
   // ===== TOKEN CREATION & SEARCH =====
-  async bookRegularToken(payload: { doctorId: string; patientName: string; patientPhone: string; condition?: string; source?: string }) {
+  async bookRegularToken(payload: { doctorId: string; patientName: string; patientPhone: string; patientAge?: number; patientGender?: string; condition?: string; source?: string }) {
     try {
       const headers = await this.getHeaders();
       const res = await fetch(`${API_BASE_URL}/api/tokens/regular`, {
@@ -661,7 +640,7 @@ export const RemoteAPI = {
         return {
           patient: null,
           activeToken: null,
-          status: res.statusCode || res.status,
+          status: res.status,
           error: data?.error || data?.message || 'Patient not found',
           notFound: res.status === 404,
           forbidden: res.status === 403,

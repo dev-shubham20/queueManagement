@@ -167,6 +167,7 @@ export default function TabExploreScreen() {
             displayedDoctors.map((doc, idx) => {
               const avatarUrl = DOCTOR_AVATARS[doc.name] || DEFAULT_AVATAR;
               const hasQueue = (doc.waitingQueueCount || 0) > 0;
+              const queueWaitMin = (doc.waitingQueueCount || 0) * 10;
               const specialtySubtitle = doc.clinicName 
                 ? `${doc.specialization} • ${doc.clinicName}`
                 : doc.specialization;

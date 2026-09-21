@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -35,6 +35,14 @@ export default function DoctorsInfoScreen() {
   ];
   const [morningOffs, setMorningOffs] = useState<number[]>([0]);
   const [eveningOffs, setEveningOffs] = useState<number[]>([0]);
+
+  const toggleOff = (dayId: number, session: 'morning' | 'evening') => {
+    if (session === 'morning') {
+      setMorningOffs(prev => prev.includes(dayId) ? prev.filter(d => d !== dayId) : [...prev, dayId]);
+    } else {
+      setEveningOffs(prev => prev.includes(dayId) ? prev.filter(d => d !== dayId) : [...prev, dayId]);
+    }
+  };
 
   useEffect(() => {
     // Clinic/Hospital flow has been retired in favor of Doctor onboarding

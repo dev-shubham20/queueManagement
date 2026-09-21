@@ -6,7 +6,7 @@ export default function SuperAdminRedirectScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    const adminUrl = 'http://localhost:5001/superadmin';
+    const adminUrl = 'https://queuemanagement-api.onrender.com/superadmin';
     if (Platform.OS === 'web') {
       window.location.href = adminUrl;
     } else {
